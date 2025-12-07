@@ -1,6 +1,7 @@
 # ✈️ Singapore Airlines Data Analytics System  
 ### CN6001 Enterprise Application & Cloud Computing – Coursework Project  
 **Team Leader: Qian Zhu**
+**Team Members: Charles, Philippe, Ruitao He**
 
 ---
 
