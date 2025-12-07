@@ -118,7 +118,7 @@ The application will open automatically in your browser at:
 
 ```
 
-📌 4.1 Optional: Run the Command-Line Interface (CLI)
+## 📌 4.1 Optional: Run the Command-Line Interface (CLI)
 
 In addition to the web dashboard, the project also includes a Command-Line Interface (CLI) version for testing and bare-metal execution without a browser.
 
