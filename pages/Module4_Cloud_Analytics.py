@@ -4,30 +4,24 @@
 # Course: CN6001 Enterprise Application & Cloud Computing
 #
 # Description:
-# This module demonstrates cloud-style analytics patterns using a
-# synthetic airline dataset (train.csv). It illustrates:
-#  - Batch processing (warehouse-style KPIs)
-#  - Streaming/real-time processing (chunk-based simulation)
-#
-# Notes:
-# - The dataset is synthetic and used for academic purposes only.
-# - This module supports Streamlit UI and CLI mode via Dashboard router.
-#
-# Key Concepts:
-# - Batch vs Streaming analytics
-# - Scalable processing concepts (chunking, incremental updates)
-# - Simple KPI computations on large datasets
+# This module demonstrates cloud-style analytics patterns using the
+# project dataset (train.csv). It focuses on practical concepts:
+# caching, batch processing, and a lightweight streaming simulation.
 # ============================================================
 
+from __future__ import annotations
+
 import time
+from typing import Optional
+
+import numpy as np
 import pandas as pd
 
 
-def _safe_apply_global_styles():
-    """
-    Apply shared SIA global theme if available.
-    This is safe even if the module runs in CLI mode or if imports fail.
-    """
+# -----------------------------
+# Helpers
+# -----------------------------
+def _safe_apply_global_styles() -> bool:
     try:
         from services.ui_service import apply_global_styles
         apply_global_styles()
@@ -36,15 +30,21 @@ def _safe_apply_global_styles():
         return False
 
 
-def _inject_module_css():
-    """
-    Inject module-specific CSS using the same palette defined in ui_service.py.
-    Ensures visual consistency with the other modules.
-    """
+def _first_existing_col(df: pd.DataFrame, candidates: list[str]) -> Optional[str]:
+    cols_lower = {c.lower(): c for c in df.columns}
+    for cand in candidates:
+        if cand in df.columns:
+            return cand
+        cl = cand.lower()
+        if cl in cols_lower:
+            return cols_lower[cl]
+    return None
+
+
+def _inject_module_css() -> None:
     import streamlit as st
 
     PRIMARY_NAVY = "#002663"
-    ACCENT_GOLD = "#FFED4D"
     BACKGROUND_CREAM = "#F5F3EE"
     TEXT_GREY = "#555555"
     CARD_BG = "#FFFFFF"
@@ -54,7 +54,6 @@ def _inject_module_css():
         f"""
         <style>
         .stApp {{ background-color: {BACKGROUND_CREAM}; }}
-
         h1, h2, h3 {{ color: {PRIMARY_NAVY}; }}
 
         .sia-subtext {{
@@ -106,14 +105,76 @@ def _inject_module_css():
             color: {TEXT_GREY};
             font-size: 0.92rem;
         }}
+
+        .back-row {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 6px 0 14px 0;
+            font-size: 1rem;
+        }}
+        .back-row a {{
+            text-decoration: none;
+            font-weight: 700;
+            color: {PRIMARY_NAVY};
+        }}
+        .back-row a:hover {{
+            text-decoration: underline;
+        }}
+
+        .sia-back-float {{
+            position: fixed;
+            top: 90px;
+            right: 18px;
+            z-index: 999999;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.94);
+            border: 1px solid rgba(0,0,0,0.10);
+            box-shadow: 0 10px 28px rgba(0,0,0,0.14);
+            backdrop-filter: blur(6px);
+        }}
+        .sia-back-float a {{
+            text-decoration: none;
+            font-weight: 800;
+            color: {PRIMARY_NAVY};
+            font-size: 0.98rem;
+        }}
+        .sia-back-float a:hover {{
+            text-decoration: underline;
+        }}
         </style>
         """,
         unsafe_allow_html=True,
     )
 
 
-def _kpi_card(st, title: str, value: str, badge: str = ""):
-    """Render a themed KPI card (consistent with Module 2 style)."""
+def _render_back_links() -> None:
+    import streamlit as st
+
+    st.markdown(
+        """
+        <div class="back-row">
+            🏠 <a href="./" target="_self">Back to Dashboard</a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+        <div class="sia-back-float">
+            🏠 <a href="./" target="_self">Back to Dashboard</a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _kpi_card(st, title: str, value: str, badge: str = "") -> None:
     badge_html = f'<div class="kpi-badge">{badge}</div>' if badge else ""
     st.markdown(
         f"""
@@ -127,162 +188,266 @@ def _kpi_card(st, title: str, value: str, badge: str = ""):
     )
 
 
-def _first_existing_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
-    """Return the first candidate column found in df (case-safe)."""
-    cols_lower = {c.lower(): c for c in df.columns}
-    for cand in candidates:
-        if cand in df.columns:
-            return cand
-        cl = cand.lower()
-        if cl in cols_lower:
-            return cols_lower[cl]
-    return None
+def _bytes_to_mb(x: int) -> float:
+    return float(x) / (1024.0 * 1024.0)
+
+
+def _df_memory_bytes(df: pd.DataFrame) -> int:
+    return int(df.memory_usage(deep=True).sum())
 
 
 # -----------------------------
-# Batch Processing (Cloud-style job)
+# Cloud-style patterns
 # -----------------------------
-def batch_processing(df: pd.DataFrame) -> dict:
+def _batch_aggregate(df: pd.DataFrame, batch_size: int) -> pd.DataFrame:
     """
-    Simulate a batch analytics job:
-    - Compute KPIs across the whole dataset (warehouse style)
-    - Add short sleep to mimic cloud ETL latency (academic demo)
+    Simple batch processing pattern:
+    - process the dataset in chunks
+    - emit per-batch KPIs
     """
-    time.sleep(0.4)
+    n = len(df)
+    out = []
+    start = 0
+    batch_id = 1
 
-    # ✅ Match actual train.csv column names
-    dist_col = _first_existing_col(df, ["Flight Distance", "FlightDistance", "Distance", "flight_distance"])
-    dep_delay_col = _first_existing_col(df, ["Departure Delay in Minutes", "DepartureDelay", "DepDelay", "dep_delay"])
-    sat_col = _first_existing_col(df, ["satisfaction", "Satisfaction"])
+    delay_col = _first_existing_col(df, ["Departure Delay in Minutes", "DepartureDelay", "DepDelay"])
+    dist_col = _first_existing_col(df, ["Flight Distance", "FlightDistance", "Distance"])
+    sat_col = _first_existing_col(df, ["satisfaction", "Satisfaction", "satisfied"])
 
-    total_records = int(len(df))
+    while start < n:
+        end = min(start + batch_size, n)
+        chunk = df.iloc[start:end]
 
-    avg_distance = float("nan")
-    if dist_col:
-        avg_distance = float(pd.to_numeric(df[dist_col], errors="coerce").dropna().mean())
+        rows = len(chunk)
+        missing = int(chunk.isna().sum().sum())
 
-    avg_dep_delay = float("nan")
-    if dep_delay_col:
-        avg_dep_delay = float(pd.to_numeric(df[dep_delay_col], errors="coerce").dropna().mean())
+        avg_delay = None
+        if delay_col:
+            s = pd.to_numeric(chunk[delay_col], errors="coerce")
+            avg_delay = float(s.mean()) if s.notna().any() else None
 
-    satisfaction_rate = float("nan")
-    if sat_col:
-        # Your dataset uses labels like "satisfied" / "neutral or dissatisfied"
-        s = df[sat_col].astype(str).str.lower()
-        satisfaction_rate = float(s.str.contains("satisfied").mean() * 100.0)
+        avg_dist = None
+        if dist_col:
+            s = pd.to_numeric(chunk[dist_col], errors="coerce")
+            avg_dist = float(s.mean()) if s.notna().any() else None
 
-    return {
-        "Total Records": total_records,
-        "Average Distance (km)": avg_distance,
-        "Average Departure Delay (min)": avg_dep_delay,
-        "Satisfaction Rate (%)": satisfaction_rate,
-    }
+        sat_rate = None
+        if sat_col:
+            # handle "satisfied"/"neutral or dissatisfied" or 0/1
+            v = chunk[sat_col]
+            if v.dtype == object:
+                sat_rate = float((v.astype(str).str.lower().str.contains("satisf")).mean() * 100.0)
+            else:
+                vv = pd.to_numeric(v, errors="coerce")
+                if vv.notna().any():
+                    # assume 1 indicates satisfied if binary-like
+                    sat_rate = float((vv > 0).mean() * 100.0)
+
+        out.append(
+            {
+                "Batch": batch_id,
+                "Rows": rows,
+                "Missing Cells": missing,
+                "Avg Departure Delay": avg_delay,
+                "Avg Flight Distance": avg_dist,
+                "Satisfaction Rate %": sat_rate,
+            }
+        )
+
+        start = end
+        batch_id += 1
+
+    return pd.DataFrame(out)
 
 
-# -----------------------------
-# Streaming / Real-Time Simulation
-# -----------------------------
-def realtime_processing(df: pd.DataFrame, chunk_size: int):
+def _streaming_simulation(df: pd.DataFrame, window_size: int, steps: int, seed: int) -> pd.DataFrame:
     """
-    Generator that yields dataset chunks to simulate streaming ingestion.
-    This mimics near-real-time processing without needing a real stream source.
+    Lightweight streaming-like simulation:
+    - sample a rolling window from the dataset
+    - compute metrics per step
     """
-    for i in range(0, len(df), chunk_size):
-        yield df.iloc[i : i + chunk_size]
-        time.sleep(0.06)  # small delay to show progress clearly in UI
+    rng = np.random.default_rng(seed)
+    n = len(df)
+    if n == 0:
+        return pd.DataFrame()
+
+    delay_col = _first_existing_col(df, ["Departure Delay in Minutes", "DepartureDelay", "DepDelay"])
+    dist_col = _first_existing_col(df, ["Flight Distance", "FlightDistance", "Distance"])
+
+    rows = []
+    for t in range(1, steps + 1):
+        start = int(rng.integers(0, max(1, n)))
+        end = min(n, start + window_size)
+        window = df.iloc[start:end]
+
+        avg_delay = None
+        if delay_col:
+            s = pd.to_numeric(window[delay_col], errors="coerce")
+            avg_delay = float(s.mean()) if s.notna().any() else None
+
+        avg_dist = None
+        if dist_col:
+            s = pd.to_numeric(window[dist_col], errors="coerce")
+            avg_dist = float(s.mean()) if s.notna().any() else None
+
+        rows.append({"Step": t, "Window Rows": len(window), "Avg Delay": avg_delay, "Avg Distance": avg_dist})
+
+    return pd.DataFrame(rows)
 
 
 # -----------------------------
 # Streamlit UI
 # -----------------------------
-def run_streamlit():
+def run_streamlit() -> None:
     import streamlit as st
     from services.data_service import load_data
 
     _safe_apply_global_styles()
     _inject_module_css()
+    _render_back_links()
 
     st.title("☁️ Cloud Analytics")
     st.markdown(
-        '<div class="sia-subtext">Cloud-style analytics demonstration: batch processing vs streaming (academic simulation).</div>',
+        '<div class="sia-subtext">Cloud-oriented patterns: cached ingestion, batch processing, and a lightweight streaming simulation.</div>',
         unsafe_allow_html=True,
     )
 
-    df = load_data()
-
-    # Batch KPIs (full dataset summary)
-    st.markdown('<div class="section-title">⭐ Batch Job KPIs</div>', unsafe_allow_html=True)
-    results = batch_processing(df)
-
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        _kpi_card(st, "Total Records", f"{results['Total Records']:,}", badge="Batch ingest size")
-    with c2:
-        v = results["Average Distance (km)"]
-        _kpi_card(st, "Avg Distance (km)", "N/A" if pd.isna(v) else f"{v:.1f}", badge="Warehouse KPI")
-    with c3:
-        v = results["Average Departure Delay (min)"]
-        _kpi_card(st, "Avg Delay (min)", "N/A" if pd.isna(v) else f"{v:.1f}", badge="Ops KPI")
-    with c4:
-        v = results["Satisfaction Rate (%)"]
-        _kpi_card(st, "Satisfaction Rate", "N/A" if pd.isna(v) else f"{v:.1f}%", badge="CX KPI")
-
-    # Explanation: batch vs streaming (enterprise/cloud concept)
-    st.markdown('<div class="section-title">📦 Batch vs Real-Time</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📥 Data Ingestion</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="hint">'
-        "• <b>Batch</b>: periodic ETL jobs (data lake → warehouse) for reporting<br>"
-        "• <b>Streaming</b>: continuous updates for near real-time monitoring"
-        "</div>",
+        '<div class="hint">This section demonstrates an ingestion step and basic dataset health indicators.</div>',
         unsafe_allow_html=True,
     )
 
-    # Streaming simulation
-    st.markdown('<div class="section-title">🛰️ Streaming Simulation</div>', unsafe_allow_html=True)
-    chunk_size = st.slider("Chunk size (records)", 50, 500, 150, step=50)
+    # timing load (cloud-style: show latency and caching behavior)
+    t0 = time.perf_counter()
+    df = load_data()
+    load_ms = (time.perf_counter() - t0) * 1000.0
 
-    placeholder = st.empty()
-    progress = st.progress(0)
+    total_rows = int(len(df))
+    total_cols = int(df.shape[1])
+    missing_cells = int(df.isna().sum().sum())
+    mem_mb = _bytes_to_mb(_df_memory_bytes(df))
 
-    if st.button("Start Stream"):
-        processed = 0
-        total = len(df)
+    k1, k2, k3, k4 = st.columns(4)
+    with k1:
+        _kpi_card(st, "Rows", f"{total_rows:,}", "Dataset size")
+    with k2:
+        _kpi_card(st, "Columns", f"{total_cols}", "Schema width")
+    with k3:
+        _kpi_card(st, "Missing Cells", f"{missing_cells:,}", "Data quality")
+    with k4:
+        _kpi_card(st, "Load Time", f"{load_ms:.0f} ms", "Ingestion latency")
 
-        for chunk in realtime_processing(df, chunk_size):
-            processed += len(chunk)
-            pct = min(1.0, processed / total)
-            progress.progress(int(pct * 100))
+    with st.expander("Preview sample records"):
+        st.dataframe(df.head(20), use_container_width=True)
 
-            # Show incremental progress updates
-            placeholder.info(f"Processed {processed:,} / {total:,} records")
+    st.markdown('<div class="section-title">🧱 Batch Processing</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="hint">Process data in chunks and compute per-batch metrics.</div>',
+        unsafe_allow_html=True,
+    )
 
-        placeholder.success("Streaming simulation complete ✅")
+    c1, c2 = st.columns(2)
+    with c1:
+        batch_size = st.slider("Batch size (rows)", 1000, 50000, 10000, step=1000)
+    with c2:
+        show_table = st.checkbox("Show batch table", value=True)
+
+    batch_df = _batch_aggregate(df, batch_size=batch_size)
+
+    # chart: rows per batch
+    chart_df = batch_df[["Batch", "Rows"]].set_index("Batch")
+    st.bar_chart(chart_df)
+
+    # chart: avg delay per batch (if available)
+    if batch_df["Avg Departure Delay"].notna().any():
+        delay_chart = batch_df[["Batch", "Avg Departure Delay"]].set_index("Batch")
+        st.line_chart(delay_chart)
+
+    if show_table:
+        st.dataframe(batch_df, use_container_width=True)
+
+    st.markdown('<div class="section-title">📡 Streaming Simulation</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="hint">A lightweight simulation that computes metrics on a rolling window, similar to near real-time dashboards.</div>',
+        unsafe_allow_html=True,
+    )
+
+    s1, s2, s3 = st.columns(3)
+    with s1:
+        window_size = st.slider("Window size (rows)", 200, 20000, 4000, step=200)
+    with s2:
+        steps = st.slider("Steps", 5, 60, 20, step=5)
+    with s3:
+        seed = st.number_input("Seed", min_value=1, max_value=999999, value=2025, step=1)
+
+    stream_df = _streaming_simulation(df, window_size=window_size, steps=steps, seed=int(seed))
+    if len(stream_df) == 0:
+        st.info("No data available for streaming simulation.")
+    else:
+        st.line_chart(stream_df.set_index("Step")[["Avg Delay"]].dropna())
+        if stream_df["Avg Distance"].notna().any():
+            st.line_chart(stream_df.set_index("Step")[["Avg Distance"]].dropna())
+
+        with st.expander("Show streaming metrics table"):
+            st.dataframe(stream_df, use_container_width=True)
+
+    st.markdown('<div class="section-title">⚖️ Batch vs Real-time</div>', unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="hint">
+        <b>Batch</b> is efficient for scheduled reporting and heavy aggregation jobs.
+        <br/>
+        <b>Real-time</b> supports rapid monitoring and quick operational response, often using rolling windows or event streams.
+        <br/><br/>
+        This module demonstrates both patterns using the same dataset and metrics.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # -----------------------------
-# CLI Mode
+# CLI
 # -----------------------------
-def run_cli():
-    """
-    CLI entry point for non-visual cloud analytics demonstration.
-    Prints batch KPIs as a quick verification for the coursework requirement.
-    """
+def run_cli() -> None:
     from services.data_service import load_data
 
     print("\n--- Cloud Analytics (CLI) ---")
+
+    t0 = time.perf_counter()
     df = load_data()
-    results = batch_processing(df)
+    load_ms = (time.perf_counter() - t0) * 1000.0
 
-    for k, v in results.items():
-        if isinstance(v, float):
-            print(f"{k}: {'N/A' if pd.isna(v) else f'{v:.2f}'}")
-        else:
-            print(f"{k}: {v}")
+    total_rows = int(len(df))
+    total_cols = int(df.shape[1])
+    missing_cells = int(df.isna().sum().sum())
+    mem_mb = _bytes_to_mb(_df_memory_bytes(df))
 
-    print("Cloud analytics completed.")
+    print(f"Rows: {total_rows:,}")
+    print(f"Columns: {total_cols}")
+    print(f"Missing cells: {missing_cells:,}")
+    print(f"Estimated memory: {mem_mb:.2f} MB")
+    print(f"Load time: {load_ms:.0f} ms")
+
+    batch_size = 10000
+    batch_df = _batch_aggregate(df, batch_size=batch_size)
+
+    print(f"\nBatch processing (batch_size={batch_size}):")
+    print(f"Total batches: {len(batch_df)}")
+    print(f"Rows processed: {int(batch_df['Rows'].sum()):,}")
+
+    if batch_df["Avg Departure Delay"].notna().any():
+        avg_delay_overall = float(pd.to_numeric(df[_first_existing_col(df, ['Departure Delay in Minutes','DepartureDelay','DepDelay'])], errors="coerce").mean())
+        print(f"Overall avg departure delay: {avg_delay_overall:.2f} min")
+
+    # small streaming summary
+    stream_df = _streaming_simulation(df, window_size=4000, steps=10, seed=2025)
+    if len(stream_df) > 0 and stream_df["Avg Delay"].notna().any():
+        print(f"Streaming avg delay (10 steps): mean={float(stream_df['Avg Delay'].mean()):.2f} min")
 
 
-def main(mode="streamlit"):
+def main(mode: str = "streamlit") -> None:
     if mode == "cli":
         run_cli()
     else:
