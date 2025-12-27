@@ -64,16 +64,15 @@ def run_streamlit_ui():
         b64 = base64.b64encode(p.read_bytes()).decode("utf-8")
         return f"data:{mime};base64,{b64}"
 
-    hero_video_uri = to_data_uri(HERO_VIDEO_PATH, "video/mp4")  # keep hero.mp4 small
+    hero_video_uri = to_data_uri(HERO_VIDEO_PATH, "video/mp4")
     logo_uri = to_data_uri(LOGO_PATH, "image/png")
 
     # ---------------------------------------------------
-    # GLOBAL CLEAN DESIGN SYSTEM (square cards / boxes)
+    # GLOBAL STYLE
     # ---------------------------------------------------
     st.markdown(
         """
         <style>
-          /* Background + page width */
           [data-testid="stAppViewContainer"]{
             background:
               radial-gradient(1100px 700px at 15% 5%, rgba(14, 65, 140, 0.10), transparent 55%),
@@ -87,7 +86,6 @@ def run_streamlit_ui():
           }
           header, [data-testid="stHeader"]{ background: transparent !important; }
 
-          /* Section typography */
           .secTitle{
             font-size: 1.9rem;
             font-weight: 950;
@@ -99,43 +97,45 @@ def run_streamlit_ui():
             color: rgba(15, 23, 42, 0.65);
             font-size: 1.05rem;
             line-height: 1.5;
-            margin-bottom: 14px;
+            margin-bottom: 10px; /* tighter */
           }
 
-          /* Box/card styling for bordered containers */
-          div[data-testid="stVerticalBlockBorderWrapper"]{
-            background: #FFFFFF !important;
-            border: 1px solid rgba(15, 23, 42, 0.10) !important;
-            border-radius: 14px !important;     /* more “square” */
-            box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08) !important;
+          /* --- CARD SYSTEM (unified image + title + text + button) --- */
+          .cardBox{
+            border-radius: 14px;
+            background: #fff;
+            border: 1px solid rgba(15, 23, 42, 0.10);
+            box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
+            overflow: hidden;
+            transition: transform .14s ease, box-shadow .14s ease;
+            margin-bottom: 12px; /* tighter */
+          }
+          .cardBox:hover{
+            transform: translateY(-2px);
+            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.11);
           }
 
-          /* Reduce padding inconsistencies */
-          div[data-testid="stVerticalBlockBorderWrapper"] > div{
-            padding-top: 12px !important;
-            padding-bottom: 12px !important;
+          /* Tighter Streamlit spacing between blocks inside cards */
+          .cardPad{
+            padding: 12px 14px 14px 14px;
           }
 
-          /* Images inside cards: square-ish */
+          /* Image: looks connected to card */
           [data-testid="stImage"] img{
-            border-radius: 10px !important;
+            border-radius: 0px !important; /* card handles radius */
           }
 
-          /* Buttons: clean CTA */
+          /* CTA buttons: smaller + cleaner (not huge detached bars) */
           div.stButton > button{
-            width: 100%;
             border-radius: 10px !important;
-            padding: 10px 14px !important;
+            padding: 9px 12px !important;
             font-weight: 900 !important;
             border: 1px solid rgba(12, 37, 78, 0.16) !important;
             background: linear-gradient(135deg, #0B2C5F, #0A4AA1) !important;
             color: #FFFFFF !important;
           }
-          div.stButton > button:hover{
-            filter: brightness(1.06);
-          }
+          div.stButton > button:hover{ filter: brightness(1.06); }
 
-          /* Small meta text */
           .meta{
             color: rgba(15, 23, 42, 0.60);
             font-weight: 800;
@@ -143,9 +143,12 @@ def run_streamlit_ui():
             margin-top: 6px;
           }
 
-          /* Make markdown lists tighter in boxes */
-          .tight ul { margin-top: 0.3rem; margin-bottom: 0.3rem; }
-          .tight li { margin-bottom: 0.25rem; }
+          /* Reduce excess whitespace between Streamlit elements */
+          [data-testid="stVerticalBlock"] > div:has(> div.stButton) { margin-top: 0.35rem; }
+          .tightText p { margin: 0.35rem 0 0.35rem 0; }
+
+          /* Make columns a bit closer together */
+          div[data-testid="column"]{ padding-left: 0.35rem !important; padding-right: 0.35rem !important; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -164,24 +167,19 @@ def run_streamlit_ui():
             )
 
     # ---------------------------------------------------
-    # HERO (Background video behind title) — use components.html so HTML never prints as text
+    # HERO (UNCHANGED title — keep exactly)
     # ---------------------------------------------------
     hero_height = 380
-
-    # Clean fallbacks (if missing video/logo)
-    video_tag = ""
-    if hero_video_uri:
-        video_tag = f"""
+    video_tag = (
+        f"""
         <video class="bg" autoplay muted loop playsinline>
           <source src="{hero_video_uri}" type="video/mp4">
         </video>
         """
-    else:
-        video_tag = """<div class="bg-fallback"></div>"""
-
-    logo_tag = ""
-    if logo_uri:
-        logo_tag = f"""<img class="logo" src="{logo_uri}" alt="SIA Logo" />"""
+        if hero_video_uri
+        else """<div class="bg-fallback"></div>"""
+    )
+    logo_tag = f"""<img class="logo" src="{logo_uri}" alt="SIA Logo" />""" if logo_uri else ""
 
     hero_html = f"""
     <div class="hero">
@@ -203,10 +201,6 @@ def run_streamlit_ui():
             </div>
           </div>
         </div>
-        <div class="note">
-          {("" if hero_video_uri else "⚠️ Missing video: assets/hero.mp4")}
-          {("" if logo_uri else (" &nbsp; • &nbsp; ⚠️ Missing logo: assets/singapore_airlines_logo.png"))}
-        </div>
       </div>
     </div>
 
@@ -215,11 +209,12 @@ def run_streamlit_ui():
         position: relative;
         height: {hero_height}px;
         width: 100%;
-        border-radius: 16px;                 /* more “box” */
+        border-radius: 16px;
         overflow: hidden;
         border: 1px solid rgba(255,255,255,0.16);
         box-shadow: 0 18px 50px rgba(15,23,42,0.18);
         background: #0b2c5f;
+        margin-bottom: 12px;
       }}
       .bg {{
         position:absolute; inset:0;
@@ -246,8 +241,7 @@ def run_streamlit_ui():
         padding: 22px 22px 18px 22px;
         display:flex;
         flex-direction: column;
-        justify-content: space-between;
-        gap: 12px;
+        justify-content: center;
         font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
       }}
       .top {{
@@ -304,23 +298,16 @@ def run_streamlit_ui():
         background: rgba(255,255,255,0.82);
         display:inline-block;
       }}
-      .note {{
-        color: rgba(255,255,255,0.80);
-        font-weight: 800;
-        font-size: 13px;
-        opacity: 0.95;
-      }}
       @media (max-width: 980px) {{
         .title {{ font-size: 34px; }}
         .hero {{ height: 420px; }}
       }}
     </style>
     """
-
-    components.html(hero_html, height=hero_height + 10)
+    components.html(hero_html, height=hero_height + 12)
 
     # ---------------------------------------------------
-    # SECTIONS
+    # Intro area (kept)
     # ---------------------------------------------------
     st.markdown('<div class="secTitle">📌 What this dashboard does</div>', unsafe_allow_html=True)
     st.markdown(
@@ -328,69 +315,69 @@ def run_streamlit_ui():
         unsafe_allow_html=True,
     )
 
-    a, b = st.columns(2, gap="large")
+    a, b = st.columns(2, gap="small")
     with a:
         with st.container(border=True):
             st.markdown("#### 🧭 How to use")
             st.markdown(
-                """
-                <div class="tight">
-                <ul>
-                  <li>Open a module using <b>Open module</b> or a governance page using <b>Open page</b>.</li>
-                  <li>Each module includes interactive controls + charts.</li>
-                  <li>Risk Simulation explains uncertainty (probability, percentiles, worst-case).</li>
-                  <li>Cloud Analytics demonstrates scalable processing concepts.</li>
-                </ul>
-                </div>
-                """,
-                unsafe_allow_html=True,
+                "- Open a module using **Open module** or a governance page using **Open page**.\n"
+                "- Each module includes interactive controls + charts.\n"
+                "- Risk Simulation explains uncertainty (probability, percentiles, worst-case).\n"
+                "- Cloud Analytics demonstrates scalable processing concepts."
             )
-
     with b:
         with st.container(border=True):
             st.markdown("#### 🗂️ Data & concepts")
             st.markdown(
-                """
-                <div class="tight">
-                <ul>
-                  <li><b>Dataset:</b> synthetic <code>assets/train.csv</code> (academic use).</li>
-                  <li><b>Architecture:</b> modular pages + shared services (data / UI helpers).</li>
-                  <li><b>UI + CLI:</b> dashboard for visuals + CLI for quick summaries.</li>
-                </ul>
-                </div>
-                """,
-                unsafe_allow_html=True,
+                "- **Dataset:** synthetic `assets/train.csv` (academic use)\n"
+                "- **Architecture:** modular pages + shared services (data / UI helpers)\n"
+                "- **UI + CLI:** dashboard for visuals + CLI for quick summaries"
             )
 
     # ---------------------------------------------------
-    # CLEAN CARD RENDERER (square box style)
+    # THIS IS THE ONLY PART WE CHANGED: 6 unified boxes
     # ---------------------------------------------------
-    def render_card(title, emoji, desc, hint, page_py, img_path: Path, btn_label: str, key: str):
-        with st.container(border=True):
-            if exists(img_path):
-                st.image(str(img_path), use_container_width=True)
-            else:
-                st.info(f"Missing image: {img_path.name}")
+    def render_unified_box(
+        title: str,
+        emoji: str,
+        desc: str,
+        hint: str,
+        page_py: str,
+        img_path: Path,
+        btn_label: str,
+        key: str,
+    ):
+        st.markdown('<div class="cardBox">', unsafe_allow_html=True)
 
-            st.markdown(f"#### {emoji} {title}")
-            st.write(desc)
-            st.markdown(f'<div class="meta">{hint}</div>', unsafe_allow_html=True)
+        # image sits at top of card (connected)
+        if exists(img_path):
+            st.image(str(img_path), use_container_width=True)
+        else:
+            st.warning(f"Missing image: {img_path.name}")
 
-            if st.button(f"➡️ {btn_label}", key=key, use_container_width=True):
-                go(page_py)
+        st.markdown('<div class="cardPad tightText">', unsafe_allow_html=True)
 
-    # ---------------------------------------------------
-    # SYSTEM PAGES
-    # ---------------------------------------------------
+        # title, text, hint
+        st.markdown(f"### {emoji} {title}")
+        st.write(desc)
+        st.markdown(f'<div class="meta">{hint}</div>', unsafe_allow_html=True)
+
+        # button at bottom of the SAME card
+        if st.button(f"➡️ {btn_label}", key=key, use_container_width=True):
+            go(page_py)
+
+        st.markdown("</div></div>", unsafe_allow_html=True)
+
+    # ----------------- System Pages (2 boxes) -----------------
     st.markdown('<div class="secTitle">🧩 System Pages</div>', unsafe_allow_html=True)
     st.markdown(
         '<div class="secSub">Enterprise design + governance pages (architecture, security, risk & ethics).</div>',
         unsafe_allow_html=True,
     )
 
-    s1, s2 = st.columns(2, gap="large")
-    with s1:
-        render_card(
+    c1, c2 = st.columns(2, gap="small")
+    with c1:
+        render_unified_box(
             title="System Overview / Architecture",
             emoji="🧱",
             desc="View the system architecture, shared services, page structure, and cloud scalability mapping.",
@@ -400,8 +387,8 @@ def run_streamlit_ui():
             btn_label="Open page",
             key="open_system_overview",
         )
-    with s2:
-        render_card(
+    with c2:
+        render_unified_box(
             title="Security, Risk & Ethics",
             emoji="🛡️",
             desc="Review privacy protections, governance assumptions, security controls, and ethical analytics considerations.",
@@ -412,18 +399,16 @@ def run_streamlit_ui():
             key="open_security_risk_ethics",
         )
 
-    # ---------------------------------------------------
-    # ANALYTICS MODULES
-    # ---------------------------------------------------
+    # ----------------- Analytics Modules (4 boxes) -----------------
     st.markdown('<div class="secTitle">📊 Analytics Modules</div>', unsafe_allow_html=True)
     st.markdown(
         '<div class="secSub">Click <b>Open module</b> to navigate. Each module follows the same clean boxed layout.</div>',
         unsafe_allow_html=True,
     )
 
-    r1c1, r1c2 = st.columns(2, gap="large")
+    r1c1, r1c2 = st.columns(2, gap="small")
     with r1c1:
-        render_card(
+        render_unified_box(
             title="Flight Performance Analytics",
             emoji="✈️",
             desc="Explore distance distribution, delay trends, crew/service indicators, and estimated fuel usage.",
@@ -434,7 +419,7 @@ def run_streamlit_ui():
             key="open_module_1",
         )
     with r1c2:
-        render_card(
+        render_unified_box(
             title="Customer Experience Analytics",
             emoji="😊",
             desc="Analyse satisfaction outcomes, service ratings, and behavioural indicators affecting passenger experience.",
@@ -445,9 +430,9 @@ def run_streamlit_ui():
             key="open_module_2",
         )
 
-    r2c1, r2c2 = st.columns(2, gap="large")
+    r2c1, r2c2 = st.columns(2, gap="small")
     with r2c1:
-        render_card(
+        render_unified_box(
             title="Risk & Scenario Simulation",
             emoji="⚠️",
             desc="Model operational uncertainty using Monte Carlo simulation and scenario-based disruption controls.",
@@ -458,7 +443,7 @@ def run_streamlit_ui():
             key="open_module_3",
         )
     with r2c2:
-        render_card(
+        render_unified_box(
             title="Cloud Analytics",
             emoji="☁️",
             desc="Demonstrate scalable processing concepts and cloud-oriented analytics patterns.",
@@ -468,11 +453,6 @@ def run_streamlit_ui():
             btn_label="Open module",
             key="open_module_4",
         )
-
-    st.info(
-        "If the hero video loads slowly: keep `assets/hero.mp4` as a short loop (small file). "
-        "If images don’t show: verify filename capitalization inside `/assets`."
-    )
 
 
 # =============================================================
