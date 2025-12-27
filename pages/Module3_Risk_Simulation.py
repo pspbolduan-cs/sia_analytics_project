@@ -190,7 +190,9 @@ def simulate_fuel_price_paths(
 # -----------------------------
 # Streamlit UI
 # -----------------------------
-def run_streamlit():
+def run_streamlit(import streamlit as st
+st.error("✅ PHILIPPE FORK MODULE 3 LIVE — TEST 999")
+):
     import streamlit as st
     from services.data_service import load_data
 
