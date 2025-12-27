@@ -1,181 +1,210 @@
+# ============================================
+# Author: Qian Zhu
+# Date: 2025-12
+# Singapore Airlines Analytics System
+# Dashboard (Home Page) + CLI
+# ============================================
+
 import sys
 import logging
 from pathlib import Path
-import base64
 
 logging.basicConfig(level=logging.INFO)
 
 
-ASSET_DIR = Path(__file__).parent / "assets"
+# =========================
+# Helpers
+# =========================
+def _read_file_bytes(path: str) -> bytes:
+    p = Path(path)
+    if not p.exists():
+        return b""
+    return p.read_bytes()
 
 
-def _b64_file(path: Path) -> str:
-    """Return base64 string for a local file. Empty string if missing."""
-    try:
-        return base64.b64encode(path.read_bytes()).decode("utf-8")
-    except Exception:
+def _video_data_uri(mp4_path: str) -> str:
+    """
+    Returns a data: URI for MP4 to make background video reliable on Streamlit Cloud.
+    If the file is missing, returns an empty string.
+    """
+    import base64
+
+    data = _read_file_bytes(mp4_path)
+    if not data:
         return ""
+    b64 = base64.b64encode(data).decode("utf-8")
+    return f"data:video/mp4;base64,{b64}"
 
 
+# =============================================================
+# STREAMLIT UI MODE
+# =============================================================
 def run_streamlit_ui():
     import streamlit as st
 
-    st.set_page_config(page_title="SIA Dashboard", page_icon="🏠", layout="wide")
-
-    # Apply shared theme if available
     try:
         from services.ui_service import apply_global_styles
-
-        apply_global_styles()
     except Exception:
-        pass
+        apply_global_styles = None
 
-    # Assets (base64 so it works on Streamlit Cloud)
-    logo_b64 = _b64_file(ASSET_DIR / "singapore_airlines_logo.png")
-    hero_mp4_b64 = _b64_file(ASSET_DIR / "hero.mp4")
+    st.set_page_config(page_title="SIA Dashboard", page_icon="🏠", layout="wide")
 
-    m1_b64 = _b64_file(ASSET_DIR / "module1.png")
-    m2_b64 = _b64_file(ASSET_DIR / "module2.png")
-    m3_b64 = _b64_file(ASSET_DIR / "module3.png")
-    m4_b64 = _b64_file(ASSET_DIR / "module4.png")
+    if apply_global_styles:
+        try:
+            apply_global_styles()
+        except Exception:
+            pass
 
-    # -----------------------------
-    # Global CSS
-    # -----------------------------
+    # -------------------------
+    # CSS
+    # -------------------------
     st.markdown(
         """
         <style>
-          :root{
-            --bg: #F6F3EE;
-            --ink: #0B1B33;
-            --muted: #5B6677;
-            --card: #0F1624;
-            --card2: rgba(15,22,36,0.92);
-            --stroke: rgba(255,255,255,0.10);
-            --shadow: 0 16px 40px rgba(0,0,0,0.18);
-            --r: 24px;
-          }
+          /* Reduce top padding */
+          .block-container { padding-top: 1.2rem; }
 
-          .block-container { padding-top: 1.25rem; }
+          /* Remove any accidental code formatting look inside our sections */
+          pre, code { font-family: inherit !important; }
 
+          /* HERO */
           .heroWrap{
             position: relative;
-            border-radius: 28px;
+            border-radius: 26px;
             overflow: hidden;
-            box-shadow: var(--shadow);
-            margin-bottom: 26px;
+            margin-bottom: 2.2rem;
+            box-shadow: 0 18px 45px rgba(0,0,0,0.22);
+            border: 1px solid rgba(255,255,255,0.10);
+            min-height: 360px;
           }
-
-          .heroMedia{
+          .heroVideo{
             position:absolute;
             inset:0;
-            z-index:0;
-            background: linear-gradient(135deg, #001A4D 0%, #003A80 55%, #0A3D7A 100%);
+            width:100%;
+            height:100%;
+            object-fit:cover;
+            opacity: 0.80;
+            filter: saturate(1.05) contrast(1.05);
+            transform: scale(1.03);
           }
-
           .heroOverlay{
             position:absolute;
             inset:0;
-            z-index:1;
-            background: linear-gradient(135deg,
-              rgba(0,26,77,0.90) 0%,
-              rgba(0,58,128,0.78) 55%,
-              rgba(0,26,77,0.86) 100%);
+            background: linear-gradient(135deg, rgba(0,26,77,0.88) 0%, rgba(0,58,128,0.72) 45%, rgba(0,26,77,0.88) 100%);
           }
-
           .heroInner{
-            position: relative;
-            z-index: 2;
-            padding: 40px 42px;
+            position:relative;
+            z-index:2;
+            padding: 2.2rem 2.4rem;
             display:flex;
             gap: 22px;
-            flex-wrap: wrap;
             align-items:flex-start;
+            flex-wrap: wrap;
           }
-
           .logoChip{
             background: rgba(255,255,255,0.92);
             border-radius: 18px;
-            padding: 10px 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+            padding: 12px 14px;
+            box-shadow: 0 12px 35px rgba(0,0,0,0.18);
+            border: 1px solid rgba(255,255,255,0.45);
             display:flex;
             align-items:center;
             justify-content:center;
           }
-          .logoChip img{ height:64px; width:auto; display:block; }
-
+          .logoChip img{
+            height: 64px;
+            width:auto;
+            display:block;
+          }
           .heroTitle{
-            font-size: 3.15rem;
+            font-size: 3.1rem;
             font-weight: 950;
             letter-spacing: -1px;
-            margin: 0;
-            color: #FFFFFF;
+            color: #ffffff;
             line-height: 1.05;
+            margin: 0.15rem 0 0.55rem 0;
           }
-
           .heroSub{
-            margin-top: 10px;
-            max-width: 880px;
-            font-size: 1.12rem;
-            color: rgba(255,255,255,0.85);
+            color: rgba(255,255,255,0.88);
+            font-size: 1.18rem;
+            max-width: 980px;
+            margin: 0 0 1.05rem 0;
           }
 
           .tagRow{
-            margin-top: 18px;
             display:flex;
-            flex-wrap:wrap;
             gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 8px;
           }
           .tagPill{
             display:inline-flex;
-            gap:10px;
             align-items:center;
-            padding: 10px 14px;
+            gap: 8px;
+            padding: 9px 12px;
             border-radius: 999px;
-            background: rgba(255,255,255,0.10);
-            border: 1px solid rgba(255,255,255,0.14);
-            color: rgba(255,255,255,0.86);
-            font-weight: 600;
-            backdrop-filter: blur(8px);
+            background: rgba(255,255,255,0.14);
+            border: 1px solid rgba(255,255,255,0.22);
+            color: rgba(255,255,255,0.92);
+            font-weight: 700;
+            font-size: 0.95rem;
+            backdrop-filter: blur(6px);
           }
           .tagDot{
-            width:10px; height:10px; border-radius:999px;
-            background: rgba(255,255,255,0.80);
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.75);
             display:inline-block;
           }
+          .kbd{
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: rgba(0,0,0,0.22);
+            border: 1px solid rgba(255,255,255,0.16);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-weight: 700;
+          }
 
+          /* Sections */
           .sectionTitle{
             font-size: 2.35rem;
-            font-weight: 900;
-            color: #0B2A57;
-            margin-top: 8px;
-            margin-bottom: 10px;
+            font-weight: 950;
+            color: #0B2A4A;
+            margin: 0.4rem 0 0.65rem 0;
+            letter-spacing: -0.5px;
             display:flex;
             align-items:center;
-            gap: 12px;
+            gap: 10px;
           }
-
           .sectionSub{
-            color: var(--muted);
+            color: #6B7280;
+            margin: 0 0 1.25rem 0;
             font-size: 1.05rem;
-            margin-bottom: 18px;
           }
 
+          /* Cards grid */
           .grid{
             display:grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 18px;
           }
-          @media (max-width: 900px){
+          @media (max-width: 1000px){
             .grid{ grid-template-columns: 1fr; }
+            .heroTitle{ font-size: 2.3rem; }
           }
 
           .moduleCard{
-            border-radius: var(--r);
-            overflow:hidden;
-            background: var(--card);
-            box-shadow: var(--shadow);
-            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 22px;
+            overflow: hidden;
+            background: #0B1220;
+            border: 1px solid rgba(255,255,255,0.10);
+            box-shadow: 0 12px 34px rgba(0,0,0,0.18);
+            transition: transform 120ms ease, box-shadow 120ms ease;
+          }
+          .moduleCard:hover{
+            transform: translateY(-2px);
+            box-shadow: 0 18px 48px rgba(0,0,0,0.24);
           }
 
           .thumb{
@@ -183,179 +212,172 @@ def run_streamlit_ui():
             height: 190px;
             object-fit: cover;
             display:block;
-            filter: saturate(1.05) contrast(1.03);
           }
 
           .moduleInner{
-            padding: 18px 20px 18px 20px;
+            padding: 18px 18px 16px 18px;
           }
-
           .moduleTitleRow{
             display:flex;
             align-items:center;
-            gap: 12px;
-            color: #FFFFFF;
+            gap: 10px;
+            color: #fff;
+            font-size: 1.45rem;
             font-weight: 900;
-            font-size: 1.35rem;
-            margin-bottom: 8px;
+            margin: 0 0 8px 0;
           }
-
           .moduleDesc{
-            color: rgba(255,255,255,0.78);
+            color: rgba(255,255,255,0.80);
             font-size: 1.02rem;
             line-height: 1.45;
-            margin-bottom: 14px;
+            margin: 0 0 14px 0;
+            min-height: 2.7em;
           }
-
           .ctaRow{
             display:flex;
             align-items:center;
             justify-content: space-between;
-            gap: 12px;
-            padding-top: 10px;
-            border-top: 1px solid rgba(255,255,255,0.08);
+            gap: 10px;
+            margin-top: 6px;
           }
-
           .ctaHint{
-            color: rgba(255,255,255,0.68);
-            font-weight: 650;
+            color: rgba(255,255,255,0.70);
+            font-weight: 700;
             font-size: 0.98rem;
           }
-
           .ctaBtn{
             display:inline-flex;
             align-items:center;
             gap: 10px;
             padding: 10px 14px;
-            border-radius: 12px;
+            border-radius: 14px;
             background: rgba(255,255,255,0.12);
-            border: 1px solid rgba(255,255,255,0.14);
-            color: rgba(255,255,255,0.92);
-            text-decoration:none;
-            font-weight: 800;
-            transition: all .15s ease-in-out;
-            white-space:nowrap;
+            border: 1px solid rgba(255,255,255,0.20);
+            color: white;
+            font-weight: 900;
+            text-decoration: none;
           }
           .ctaBtn:hover{
             background: rgba(255,255,255,0.18);
-            transform: translateY(-1px);
           }
 
-          .infoGrid{
+          /* Info cards */
+          .infoWrap{
             display:grid;
-            grid-template-columns: 1.2fr 1fr;
-            gap: 18px;
-            margin-top: 4px;
-            margin-bottom: 6px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            margin-top: 10px;
           }
-          @media (max-width: 900px){
-            .infoGrid{ grid-template-columns: 1fr; }
+          @media (max-width: 1000px){
+            .infoWrap{ grid-template-columns: 1fr; }
           }
-
           .infoCard{
-            background: #FFFFFF;
+            background: rgba(255,255,255,0.80);
+            border: 1px solid rgba(15,23,42,0.08);
             border-radius: 18px;
-            border: 1px solid rgba(11,42,87,0.10);
             padding: 18px 18px;
-            box-shadow: 0 10px 26px rgba(0,0,0,0.08);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
           }
-
           .infoCard h3{
-            margin: 0 0 10px 0;
-            color: #0B2A57;
-            font-size: 1.35rem;
-            font-weight: 900;
+            margin: 0 0 8px 0;
+            font-size: 1.25rem;
+            font-weight: 950;
+            color: #0B2A4A;
           }
-
           .infoCard ul{
             margin: 0;
-            padding-left: 1.25rem;
-            color: #344155;
+            padding-left: 1.05rem;
+            color: #334155;
             font-size: 1.02rem;
             line-height: 1.55;
-          }
-
-          .kbd{
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-            background: rgba(11,42,87,0.08);
-            border: 1px solid rgba(11,42,87,0.12);
-            padding: 2px 8px;
-            border-radius: 10px;
           }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    # -----------------------------
+    # -------------------------
+    # Paths
+    # -------------------------
+    hero_video_path = "assets/hero.mp4"
+    logo_path = "assets/singapore_airlines_logo.png"
+
+    module_images = {
+        "module1": "assets/module1.png",
+        "module2": "assets/module2.png",
+        "module3": "assets/module3.png",
+        "module4": "assets/module4.png",
+    }
+
+    # -------------------------
     # HERO (video background)
-    # -----------------------------
-    if hero_mp4_b64:
-        hero_media_html = f"""
-        <div class="heroMedia">
-          <video autoplay muted loop playsinline
-            style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0.55;">
-            <source src="data:video/mp4;base64,{hero_mp4_b64}" type="video/mp4">
+    # -------------------------
+    video_uri = _video_data_uri(hero_video_path)
+
+    video_html = ""
+    if video_uri:
+        video_html = f"""
+          <video class="heroVideo" autoplay muted loop playsinline>
+            <source src="{video_uri}" type="video/mp4">
           </video>
-        </div>
         """
-    else:
-        hero_media_html = '<div class="heroMedia"></div>'
 
-    logo_html = (
-        f'<img src="data:image/png;base64,{logo_b64}" alt="Singapore Airlines logo"/>'
-        if logo_b64
-        else '<div style="height:64px; width:220px; display:flex; align-items:center; justify-content:center; color:#0B2A57; font-weight:900;">SIA</div>'
-    )
+    hero_html = f"""
+      <div class="heroWrap">
+        {video_html}
+        <div class="heroOverlay"></div>
 
-    st.markdown(
-        f"""
-        <div class="heroWrap">
-          {hero_media_html}
-          <div class="heroOverlay"></div>
-          <div class="heroInner">
-            <div class="logoChip">{logo_html}</div>
-            <div style="flex:1; min-width:280px;">
-              <div class="heroTitle">Singapore Airlines Analytics System</div>
-              <div class="heroSub">
-                Enterprise cloud-based analytics dashboard for operational performance, customer experience,
-                risk scenarios, and cloud processing concepts.
-              </div>
+        <div class="heroInner">
+          <div class="logoChip">
+            <img src="{logo_path}" alt="Singapore Airlines logo">
+          </div>
 
-              <div class="tagRow">
-                <span class="tagPill"><span class="tagDot"></span>Streamlit UI</span>
-                <span class="tagPill"><span class="tagDot"></span>CLI supported</span>
-                <span class="tagPill"><span class="tagDot"></span>Synthetic dataset: <span class="kbd">assets/train.csv</span></span>
-              </div>
+          <div style="flex:1; min-width: 280px;">
+            <div class="heroTitle">Singapore Airlines Analytics System</div>
+            <div class="heroSub">
+              Enterprise cloud-based analytics dashboard for operational performance, customer experience,
+              risk scenarios, and cloud processing concepts.
+            </div>
+
+            <div class="tagRow">
+              <span class="tagPill"><span class="tagDot"></span>Streamlit UI</span>
+              <span class="tagPill"><span class="tagDot"></span>CLI supported</span>
+              <span class="tagPill"><span class="tagDot"></span>Synthetic dataset: <span class="kbd">assets/train.csv</span></span>
             </div>
           </div>
         </div>
-        """,
+      </div>
+    """
+
+    st.markdown(hero_html, unsafe_allow_html=True)
+
+    # -------------------------
+    # What this dashboard does
+    # -------------------------
+    st.markdown('<div class="sectionTitle">📌 What this dashboard does</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="sectionSub">A single entry-point that lets you explore four analytics modules built on a shared theme, layout, and dataset.</div>',
         unsafe_allow_html=True,
     )
 
-    # -----------------------------
-    # What this dashboard does
-    # -----------------------------
-    st.markdown('<div class="sectionTitle">📌 What this dashboard does</div>', unsafe_allow_html=True)
-
     st.markdown(
         """
-        <div class="infoGrid">
-          <div class="infoCard">
-            <h3>Purpose</h3>
-            <ul>
-              <li>Provide a single entry-point to four analytics modules.</li>
-              <li>Show operational insights (performance, experience, risk) using a consistent UI theme.</li>
-              <li>Demonstrate cloud analytics concepts (scaling patterns, batch vs streaming ideas).</li>
-            </ul>
-          </div>
+        <div class="infoWrap">
           <div class="infoCard">
             <h3>How to use</h3>
             <ul>
-              <li>Open any module below and explore filters and KPIs.</li>
-              <li>Use the module “Back to Dashboard” link to return here.</li>
-              <li>Results use the same dataset/service layer across pages.</li>
+              <li>Start here and open a module using the “Open module” buttons below.</li>
+              <li>Use sliders/filters inside modules to test different operational conditions.</li>
+              <li>Each module shows KPIs plus charts that support the insights.</li>
+            </ul>
+          </div>
+          <div class="infoCard">
+            <h3>Data & concepts</h3>
+            <ul>
+              <li><b>Dataset:</b> synthetic <span class="kbd">assets/train.csv</span> for academic demonstration.</li>
+              <li><b>Risk module:</b> probabilities, percentiles, worst-case outcomes (Monte Carlo).</li>
+              <li><b>Cloud module:</b> batch vs streaming + scalability patterns.</li>
+              <li><b>Shared UI:</b> consistent theme across pages for a coherent system.</li>
             </ul>
           </div>
         </div>
@@ -363,95 +385,76 @@ def run_streamlit_ui():
         unsafe_allow_html=True,
     )
 
-    # -----------------------------
-    # Module cards
-    # -----------------------------
+    # -------------------------
+    # Modules
+    # -------------------------
     st.markdown('<div class="sectionTitle">📊 Analytics Modules</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sectionSub">Click <b>Open module</b> to navigate.</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="sectionSub">Open a module to explore its KPIs, visualisations, and controls.</div>',
+        unsafe_allow_html=True,
+    )
 
-    def module_card(img_b64: str, icon: str, title: str, desc: str, hint: str, page_path: str):
-        img_html = (
-            f'<img class="thumb" src="data:image/png;base64,{img_b64}" alt="{title}"/>'
-            if img_b64
-            else '<div style="height:190px; background: linear-gradient(135deg,#001A4D,#003A80);"></div>'
+    # Use Streamlit's multipage linking if available; fallback to basic anchors.
+    def page_link_html(page_path: str, label: str) -> str:
+        # Streamlit multipage typically supports st.page_link; HTML anchor fallback keeps the UI usable.
+        return f'<a class="ctaBtn" href="/{page_path}" target="_self">Open module →</a>'
+
+    # If st.page_link exists, we can render a normal button-like link below each card with Streamlit.
+    can_page_link = hasattr(st, "page_link")
+
+    def module_card(img_src: str, icon: str, title: str, desc: str, hint: str, page_path: str):
+        st.markdown(
+            f"""
+            <div class="moduleCard">
+              <img class="thumb" src="{img_src}" alt="{title}">
+              <div class="moduleInner">
+                <div class="moduleTitleRow"><span style="font-size:1.35rem;">{icon}</span><span>{title}</span></div>
+                <div class="moduleDesc">{desc}</div>
+                <div class="ctaRow">
+                  <div class="ctaHint">{hint}</div>
+                  {"<!-- button placeholder -->" if can_page_link else page_link_html(page_path, "Open module →")}
+                </div>
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
+        if can_page_link:
+            # Button aligned with the card layout: render just below the HTML card in the same column.
+            # Use an empty label in HTML and place the Streamlit page link right after.
+            st.page_link(page_path, label="Open module →", icon="➡️")
 
-        # Use st.switch_page when available (more reliable), else fall back to link
-        can_switch = hasattr(st, "switch_page")
+    col1, col2 = st.columns(2)
 
-        if can_switch:
-            # Render card + separate button row using HTML + Streamlit button
-            st.markdown(
-                f"""
-                <div class="moduleCard">
-                  {img_html}
-                  <div class="moduleInner">
-                    <div class="moduleTitleRow"><span style="font-size:1.35rem;">{icon}</span><span>{title}</span></div>
-                    <div class="moduleDesc">{desc}</div>
-                    <div class="ctaRow">
-                      <div class="ctaHint">{hint}</div>
-                      <div style="opacity:0.7; font-weight:800;">Open module →</div>
-                    </div>
-                  </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            # Button below the card to trigger navigation
-            if st.button("Open module →", key=f"btn_{page_path}"):
-                st.switch_page(page_path)
-        else:
-            # Link-based fallback
-            st.markdown(
-                f"""
-                <div class="moduleCard">
-                  {img_html}
-                  <div class="moduleInner">
-                    <div class="moduleTitleRow"><span style="font-size:1.35rem;">{icon}</span><span>{title}</span></div>
-                    <div class="moduleDesc">{desc}</div>
-                    <div class="ctaRow">
-                      <div class="ctaHint">{hint}</div>
-                      <a class="ctaBtn" href="/{page_path}" target="_self">Open module →</a>
-                    </div>
-                  </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-    c1, c2 = st.columns(2)
-    with c1:
+    with col1:
         module_card(
-            m1_b64,
+            module_images["module1"],
             "✈️",
             "Flight Performance Analytics",
             "Explore distance distribution, delay trends, crew/service indicators, and estimated fuel usage.",
             "Interactive KPIs & charts",
             "pages/Module1_Flight_Performance.py",
         )
-    with c2:
         module_card(
-            m2_b64,
-            "😊",
-            "Customer Experience Analytics",
-            "Analyse satisfaction outcomes, service ratings, and behavioural indicators affecting passenger experience.",
-            "Service quality insights",
-            "pages/Module2_Customer_Experience.py",
-        )
-
-    c3, c4 = st.columns(2)
-    with c3:
-        module_card(
-            m3_b64,
+            module_images["module3"],
             "⚠️",
             "Risk & Scenario Simulation",
             "Model operational uncertainty using Monte Carlo simulation and scenario-based disruption controls.",
             "Probabilities, percentiles, worst-case outcomes",
             "pages/Module3_Risk_Simulation.py",
         )
-    with c4:
+
+    with col2:
         module_card(
-            m4_b64,
+            module_images["module2"],
+            "😊",
+            "Customer Experience Analytics",
+            "Analyse satisfaction outcomes, service ratings, and behavioural indicators affecting passenger experience.",
+            "Service quality insights",
+            "pages/Module2_Customer_Experience.py",
+        )
+        module_card(
+            module_images["module4"],
             "☁️",
             "Cloud Analytics",
             "Demonstrate scalable processing concepts and cloud-oriented analytics patterns.",
@@ -459,20 +462,10 @@ def run_streamlit_ui():
             "pages/Module4_Cloud_Analytics.py",
         )
 
-    # -----------------------------
-    # Quick view section (optional)
-    # -----------------------------
-    with st.expander("System architecture (quick view)"):
-        st.markdown(
-            """
-            - **Dashboard (this page):** navigation + context.
-            - **Modules:** four pages in `/pages/` with shared UI theme.
-            - **Dataset:** `assets/train.csv` (synthetic academic dataset).
-            - **Services:** shared helpers in `/services/` for loading data and UI styling.
-            """
-        )
 
-
+# =============================================================
+# CLI MODE
+# =============================================================
 def run_cli():
     from pages.Module1_Flight_Performance import run_flight_performance_cli
     from pages.Module2_Customer_Experience import run_customer_experience_cli
@@ -492,24 +485,36 @@ def run_cli():
 
         if choice == "1":
             run_flight_performance_cli()
+
         elif choice == "2":
             run_customer_experience_cli()
+
         elif choice == "3":
-            print("\nRisk & Scenario Simulation is UI-focused. Use Streamlit for full functionality.")
+            print("\n[CLI] Risk Simulation module is visualization-focused.")
+            print("Please use Streamlit UI for full functionality.")
             input("\nPress ENTER to return to menu...")
+
         elif choice == "4":
-            print("\nCloud Analytics is UI-focused. Use Streamlit for full functionality.")
+            print("\n[CLI] Cloud Analytics module is visualization-focused.")
+            print("Please use Streamlit UI for full functionality.")
             input("\nPress ENTER to return to menu...")
+
         elif choice == "5":
             print("Goodbye.")
             break
+
         else:
-            print("Invalid option.")
+            print("❌ Invalid option.")
             input("Press ENTER to continue...")
 
 
+# =============================================================
+# ENTRY POINT
+# =============================================================
 if __name__ == "__main__":
+    # Usage: python3 Dashboard.py cli
     if len(sys.argv) > 1 and sys.argv[1].lower() == "cli":
         run_cli()
+    # Usage: streamlit run Dashboard.py
     else:
         run_streamlit_ui()
