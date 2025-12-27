@@ -12,28 +12,33 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO)
 
 
-# =========================
-# Helpers
-# =========================
-def _read_file_bytes(path: str) -> bytes:
+# -------------------------
+# Base64 helpers (reliable assets on Streamlit Cloud)
+# -------------------------
+def _read_bytes(path: str) -> bytes:
     p = Path(path)
-    if not p.exists():
-        return b""
-    return p.read_bytes()
+    return p.read_bytes() if p.exists() else b""
 
 
-def _video_data_uri(mp4_path: str) -> str:
-    """
-    Returns a data: URI for MP4 to make background video reliable on Streamlit Cloud.
-    If the file is missing, returns an empty string.
-    """
+def _data_uri(path: str, mime: str) -> str:
     import base64
 
-    data = _read_file_bytes(mp4_path)
+    data = _read_bytes(path)
     if not data:
         return ""
     b64 = base64.b64encode(data).decode("utf-8")
-    return f"data:video/mp4;base64,{b64}"
+    return f"data:{mime};base64,{b64}"
+
+
+def _guess_image_mime(path: str) -> str:
+    p = path.lower()
+    if p.endswith(".png"):
+        return "image/png"
+    if p.endswith(".jpg") or p.endswith(".jpeg"):
+        return "image/jpeg"
+    if p.endswith(".webp"):
+        return "image/webp"
+    return "image/png"
 
 
 # =============================================================
@@ -56,18 +61,35 @@ def run_streamlit_ui():
             pass
 
     # -------------------------
+    # Asset paths (must match your repo)
+    # -------------------------
+    HERO_VIDEO = "assets/hero.mp4"
+    LOGO = "assets/singapore_airlines_logo.png"
+
+    MODULE_1 = "assets/module1.png"
+    MODULE_2 = "assets/module2.png"
+    MODULE_3 = "assets/module3.png"
+    MODULE_4 = "assets/module4.png"
+
+    # -------------------------
+    # Embed assets as data URIs
+    # -------------------------
+    hero_video_uri = _data_uri(HERO_VIDEO, "video/mp4")
+    logo_uri = _data_uri(LOGO, _guess_image_mime(LOGO))
+
+    m1_uri = _data_uri(MODULE_1, _guess_image_mime(MODULE_1))
+    m2_uri = _data_uri(MODULE_2, _guess_image_mime(MODULE_2))
+    m3_uri = _data_uri(MODULE_3, _guess_image_mime(MODULE_3))
+    m4_uri = _data_uri(MODULE_4, _guess_image_mime(MODULE_4))
+
+    # -------------------------
     # CSS
     # -------------------------
     st.markdown(
         """
         <style>
-          /* Reduce top padding */
           .block-container { padding-top: 1.2rem; }
 
-          /* Remove any accidental code formatting look inside our sections */
-          pre, code { font-family: inherit !important; }
-
-          /* HERO */
           .heroWrap{
             position: relative;
             border-radius: 26px;
@@ -83,14 +105,14 @@ def run_streamlit_ui():
             width:100%;
             height:100%;
             object-fit:cover;
-            opacity: 0.80;
+            opacity: 0.82;
             filter: saturate(1.05) contrast(1.05);
             transform: scale(1.03);
           }
           .heroOverlay{
             position:absolute;
             inset:0;
-            background: linear-gradient(135deg, rgba(0,26,77,0.88) 0%, rgba(0,58,128,0.72) 45%, rgba(0,26,77,0.88) 100%);
+            background: linear-gradient(135deg, rgba(0,26,77,0.90) 0%, rgba(0,58,128,0.72) 45%, rgba(0,26,77,0.90) 100%);
           }
           .heroInner{
             position:relative;
@@ -130,7 +152,6 @@ def run_streamlit_ui():
             max-width: 980px;
             margin: 0 0 1.05rem 0;
           }
-
           .tagRow{
             display:flex;
             gap: 10px;
@@ -146,7 +167,7 @@ def run_streamlit_ui():
             background: rgba(255,255,255,0.14);
             border: 1px solid rgba(255,255,255,0.22);
             color: rgba(255,255,255,0.92);
-            font-weight: 700;
+            font-weight: 800;
             font-size: 0.95rem;
             backdrop-filter: blur(6px);
           }
@@ -163,10 +184,9 @@ def run_streamlit_ui():
             background: rgba(0,0,0,0.22);
             border: 1px solid rgba(255,255,255,0.16);
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-            font-weight: 700;
+            font-weight: 800;
           }
 
-          /* Sections */
           .sectionTitle{
             font-size: 2.35rem;
             font-weight: 950;
@@ -183,7 +203,6 @@ def run_streamlit_ui():
             font-size: 1.05rem;
           }
 
-          /* Cards grid */
           .grid{
             display:grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -207,16 +226,15 @@ def run_streamlit_ui():
             box-shadow: 0 18px 48px rgba(0,0,0,0.24);
           }
 
+          /* IMPORTANT: image fills full header */
           .thumb{
             width: 100%;
-            height: 190px;
+            height: 210px;
             object-fit: cover;
             display:block;
           }
 
-          .moduleInner{
-            padding: 18px 18px 16px 18px;
-          }
+          .moduleInner{ padding: 18px 18px 16px 18px; }
           .moduleTitleRow{
             display:flex;
             align-items:center;
@@ -242,7 +260,7 @@ def run_streamlit_ui():
           }
           .ctaHint{
             color: rgba(255,255,255,0.70);
-            font-weight: 700;
+            font-weight: 800;
             font-size: 0.98rem;
           }
           .ctaBtn{
@@ -257,11 +275,8 @@ def run_streamlit_ui():
             font-weight: 900;
             text-decoration: none;
           }
-          .ctaBtn:hover{
-            background: rgba(255,255,255,0.18);
-          }
+          .ctaBtn:hover{ background: rgba(255,255,255,0.18); }
 
-          /* Info cards */
           .infoWrap{
             display:grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -272,7 +287,7 @@ def run_streamlit_ui():
             .infoWrap{ grid-template-columns: 1fr; }
           }
           .infoCard{
-            background: rgba(255,255,255,0.80);
+            background: rgba(255,255,255,0.86);
             border: 1px solid rgba(15,23,42,0.08);
             border-radius: 18px;
             padding: 18px 18px;
@@ -291,68 +306,66 @@ def run_streamlit_ui():
             font-size: 1.02rem;
             line-height: 1.55;
           }
+
+          .warn{
+            margin-top: 0.6rem;
+            color: rgba(255,255,255,0.80);
+            font-weight: 700;
+          }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
     # -------------------------
-    # Paths
+    # HERO (video + overlay + content)
     # -------------------------
-    hero_video_path = "assets/hero.mp4"
-    logo_path = "assets/singapore_airlines_logo.png"
-
-    module_images = {
-        "module1": "assets/module1.png",
-        "module2": "assets/module2.png",
-        "module3": "assets/module3.png",
-        "module4": "assets/module4.png",
-    }
-
-    # -------------------------
-    # HERO (video background)
-    # -------------------------
-    video_uri = _video_data_uri(hero_video_path)
-
-    video_html = ""
-    if video_uri:
+    if not hero_video_uri:
+        video_html = ""
+        video_note = '<div class="warn">⚠️ hero.mp4 not found at <span class="kbd">assets/hero.mp4</span></div>'
+    else:
         video_html = f"""
-          <video class="heroVideo" autoplay muted loop playsinline>
-            <source src="{video_uri}" type="video/mp4">
-          </video>
+            <video class="heroVideo" autoplay muted loop playsinline>
+              <source src="{hero_video_uri}" type="video/mp4" />
+            </video>
+        """
+        video_note = ""
+
+    if not logo_uri:
+        logo_html = '<div class="logoChip"><div class="warn">⚠️ Logo missing</div></div>'
+    else:
+        logo_html = f"""
+            <div class="logoChip">
+              <img src="{logo_uri}" alt="Singapore Airlines logo">
+            </div>
         """
 
     hero_html = f"""
       <div class="heroWrap">
         {video_html}
         <div class="heroOverlay"></div>
-
         <div class="heroInner">
-          <div class="logoChip">
-            <img src="{logo_path}" alt="Singapore Airlines logo">
-          </div>
-
+          {logo_html}
           <div style="flex:1; min-width: 280px;">
             <div class="heroTitle">Singapore Airlines Analytics System</div>
             <div class="heroSub">
               Enterprise cloud-based analytics dashboard for operational performance, customer experience,
               risk scenarios, and cloud processing concepts.
             </div>
-
             <div class="tagRow">
               <span class="tagPill"><span class="tagDot"></span>Streamlit UI</span>
               <span class="tagPill"><span class="tagDot"></span>CLI supported</span>
               <span class="tagPill"><span class="tagDot"></span>Synthetic dataset: <span class="kbd">assets/train.csv</span></span>
             </div>
+            {video_note}
           </div>
         </div>
       </div>
     """
-
     st.markdown(hero_html, unsafe_allow_html=True)
 
     # -------------------------
-    # What this dashboard does
+    # Info sections
     # -------------------------
     st.markdown('<div class="sectionTitle">📌 What this dashboard does</div>', unsafe_allow_html=True)
     st.markdown(
@@ -368,7 +381,7 @@ def run_streamlit_ui():
             <ul>
               <li>Start here and open a module using the “Open module” buttons below.</li>
               <li>Use sliders/filters inside modules to test different operational conditions.</li>
-              <li>Each module shows KPIs plus charts that support the insights.</li>
+              <li>Each module shows KPIs plus charts to support the insights.</li>
             </ul>
           </div>
           <div class="infoCard">
@@ -386,7 +399,7 @@ def run_streamlit_ui():
     )
 
     # -------------------------
-    # Modules
+    # Modules grid (images fill header)
     # -------------------------
     st.markdown('<div class="sectionTitle">📊 Analytics Modules</div>', unsafe_allow_html=True)
     st.markdown(
@@ -394,51 +407,50 @@ def run_streamlit_ui():
         unsafe_allow_html=True,
     )
 
-    # Use Streamlit's multipage linking if available; fallback to basic anchors.
-    def page_link_html(page_path: str, label: str) -> str:
-        # Streamlit multipage typically supports st.page_link; HTML anchor fallback keeps the UI usable.
-        return f'<a class="ctaBtn" href="/{page_path}" target="_self">Open module →</a>'
-
-    # If st.page_link exists, we can render a normal button-like link below each card with Streamlit.
+    # Streamlit multipage link helper:
     can_page_link = hasattr(st, "page_link")
 
-    def module_card(img_src: str, icon: str, title: str, desc: str, hint: str, page_path: str):
+    def open_link_html(page_path: str) -> str:
+        return f'<a class="ctaBtn" href="/{page_path}" target="_self">Open module →</a>'
+
+    def module_card(img_uri: str, icon: str, title: str, desc: str, hint: str, page_path: str):
+        # Fallback if image missing
+        if not img_uri:
+            img_tag = '<div style="height:210px;background:linear-gradient(135deg,#001A4D,#003A80)"></div>'
+        else:
+            img_tag = f'<img class="thumb" src="{img_uri}" alt="{title}">'
+
         st.markdown(
             f"""
             <div class="moduleCard">
-              <img class="thumb" src="{img_src}" alt="{title}">
+              {img_tag}
               <div class="moduleInner">
                 <div class="moduleTitleRow"><span style="font-size:1.35rem;">{icon}</span><span>{title}</span></div>
                 <div class="moduleDesc">{desc}</div>
                 <div class="ctaRow">
                   <div class="ctaHint">{hint}</div>
-                  {"<!-- button placeholder -->" if can_page_link else page_link_html(page_path, "Open module →")}
+                  {"<!-- streamlit link below -->" if can_page_link else open_link_html(page_path)}
                 </div>
               </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
+
         if can_page_link:
-            # Button aligned with the card layout: render just below the HTML card in the same column.
-            # Use an empty label in HTML and place the Streamlit page link right after.
             st.page_link(page_path, label="Open module →", icon="➡️")
 
     col1, col2 = st.columns(2)
 
     with col1:
         module_card(
-            module_images["module1"],
-            "✈️",
-            "Flight Performance Analytics",
+            m1_uri, "✈️", "Flight Performance Analytics",
             "Explore distance distribution, delay trends, crew/service indicators, and estimated fuel usage.",
             "Interactive KPIs & charts",
             "pages/Module1_Flight_Performance.py",
         )
         module_card(
-            module_images["module3"],
-            "⚠️",
-            "Risk & Scenario Simulation",
+            m3_uri, "⚠️", "Risk & Scenario Simulation",
             "Model operational uncertainty using Monte Carlo simulation and scenario-based disruption controls.",
             "Probabilities, percentiles, worst-case outcomes",
             "pages/Module3_Risk_Simulation.py",
@@ -446,17 +458,13 @@ def run_streamlit_ui():
 
     with col2:
         module_card(
-            module_images["module2"],
-            "😊",
-            "Customer Experience Analytics",
+            m2_uri, "😊", "Customer Experience Analytics",
             "Analyse satisfaction outcomes, service ratings, and behavioural indicators affecting passenger experience.",
             "Service quality insights",
             "pages/Module2_Customer_Experience.py",
         )
         module_card(
-            module_images["module4"],
-            "☁️",
-            "Cloud Analytics",
+            m4_uri, "☁️", "Cloud Analytics",
             "Demonstrate scalable processing concepts and cloud-oriented analytics patterns.",
             "Batch vs streaming + scaling concepts",
             "pages/Module4_Cloud_Analytics.py",
@@ -485,24 +493,19 @@ def run_cli():
 
         if choice == "1":
             run_flight_performance_cli()
-
         elif choice == "2":
             run_customer_experience_cli()
-
         elif choice == "3":
             print("\n[CLI] Risk Simulation module is visualization-focused.")
             print("Please use Streamlit UI for full functionality.")
             input("\nPress ENTER to return to menu...")
-
         elif choice == "4":
             print("\n[CLI] Cloud Analytics module is visualization-focused.")
             print("Please use Streamlit UI for full functionality.")
             input("\nPress ENTER to return to menu...")
-
         elif choice == "5":
             print("Goodbye.")
             break
-
         else:
             print("❌ Invalid option.")
             input("Press ENTER to continue...")
@@ -512,9 +515,7 @@ def run_cli():
 # ENTRY POINT
 # =============================================================
 if __name__ == "__main__":
-    # Usage: python3 Dashboard.py cli
     if len(sys.argv) > 1 and sys.argv[1].lower() == "cli":
         run_cli()
-    # Usage: streamlit run Dashboard.py
     else:
         run_streamlit_ui()
