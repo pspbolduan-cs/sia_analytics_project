@@ -1,20 +1,32 @@
 # ============================================
+# Author: Qian Zhu
+# Date: 2025-12
 # Singapore Airlines Analytics System
 # Dashboard (Home Page)
 # ============================================
 
-import streamlit as st
-from pathlib import Path
+import sys
 import base64
+from pathlib import Path
+import streamlit as st
 
 # --------------------------------------------------
 # PAGE CONFIG
 # --------------------------------------------------
 st.set_page_config(
     page_title="Singapore Airlines Analytics System",
-    page_icon="✈️",
+    page_icon="🏠",
     layout="wide"
 )
+
+# --------------------------------------------------
+# OPTIONAL GLOBAL STYLES
+# --------------------------------------------------
+try:
+    from services.ui_service import apply_global_styles
+    apply_global_styles()
+except Exception:
+    pass
 
 # --------------------------------------------------
 # PATHS
@@ -22,21 +34,27 @@ st.set_page_config(
 BASE_DIR = Path(__file__).resolve().parent
 ASSETS = BASE_DIR / "assets"
 
-def to_base64(path, mime):
+def img_uri(path):
     if not path.exists():
         return ""
-    return f"data:{mime};base64,{base64.b64encode(path.read_bytes()).decode()}"
+    return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
 
-hero_video = to_base64(ASSETS / "hero.mp4", "video/mp4")
-logo = to_base64(ASSETS / "singapore_airlines_logo.png", "image/png")
+def video_uri(path):
+    if not path.exists():
+        return ""
+    return "data:video/mp4;base64," + base64.b64encode(path.read_bytes()).decode()
 
-module_imgs = {
-    "m1": to_base64(ASSETS / "module1.png", "image/png"),
-    "m2": to_base64(ASSETS / "module2.png", "image/png"),
-    "m3": to_base64(ASSETS / "module3.png", "image/png"),
-    "m4": to_base64(ASSETS / "module4.png", "image/png"),
-    "sys": to_base64(ASSETS / "system_overview.png", "image/png"),
-    "sec": to_base64(ASSETS / "security_risk_ethics.png", "image/png"),
+# Assets
+HERO_VIDEO = video_uri(ASSETS / "hero.mp4")
+LOGO = img_uri(ASSETS / "singapore_airlines_logo.png")
+
+MODULE_IMGS = {
+    "m1": img_uri(ASSETS / "module1.png"),
+    "m2": img_uri(ASSETS / "module2.png"),
+    "m3": img_uri(ASSETS / "module3.png"),
+    "m4": img_uri(ASSETS / "module4.png"),
+    "sys": img_uri(ASSETS / "system_overview.png"),
+    "sec": img_uri(ASSETS / "security_risk_ethics.png"),
 }
 
 # --------------------------------------------------
@@ -44,45 +62,49 @@ module_imgs = {
 # --------------------------------------------------
 st.markdown("""
 <style>
+.block-container { padding-top: 1.2rem; }
+
 .hero {
   position: relative;
-  border-radius: 22px;
+  border-radius: 26px;
   overflow: hidden;
   min-height: 380px;
-  margin-bottom: 2rem;
+  box-shadow: 0 20px 50px rgba(0,0,0,.25);
 }
 .hero video {
   position:absolute;
-  inset:0;
   width:100%;
   height:100%;
   object-fit:cover;
-  opacity:.85;
 }
-.heroOverlay {
+.hero::after {
+  content:"";
   position:absolute;
   inset:0;
-  background:linear-gradient(135deg,#001a4d,#003a80);
-  opacity:.85;
+  background:linear-gradient(135deg,#001a4d 0%,#003a80cc 50%,#001a4d 100%);
 }
-.heroContent {
+.heroInner {
   position:relative;
   z-index:2;
-  padding:2.5rem;
+  padding:2.2rem;
   color:white;
+  display:flex;
+  gap:20px;
+  flex-wrap:wrap;
 }
-.heroContent img {
-  height:60px;
-  margin-bottom:1rem;
+.logo {
+  background:white;
+  padding:12px;
+  border-radius:16px;
 }
-.tag {
-  display:inline-block;
-  padding:8px 14px;
-  border-radius:999px;
-  background:rgba(255,255,255,.15);
-  margin-right:8px;
-  font-weight:700;
+.logo img { height:64px; }
+
+.sectionTitle {
+  font-size:2.2rem;
+  font-weight:900;
+  margin:1.6rem 0 .4rem;
 }
+.sectionSub { opacity:.65; margin-bottom:1rem; }
 
 .grid {
   display:grid;
@@ -95,7 +117,7 @@ st.markdown("""
 
 .card {
   background:#0f172a;
-  border-radius:20px;
+  border-radius:22px;
   overflow:hidden;
   box-shadow:0 18px 45px rgba(0,0,0,.2);
 }
@@ -105,14 +127,8 @@ st.markdown("""
   object-fit:cover;
 }
 .cardBody {
-  padding:18px;
+  padding:16px;
   color:white;
-}
-.cardBody h3 {
-  margin-bottom:6px;
-}
-.cardBody p {
-  opacity:.75;
 }
 .cardFooter {
   display:flex;
@@ -121,17 +137,14 @@ st.markdown("""
   margin-top:12px;
 }
 .cardFooter a {
-  text-decoration:none;
-  font-weight:900;
-  background:rgba(255,255,255,.15);
+  background:rgba(255,255,255,.14);
   padding:10px 14px;
   border-radius:14px;
+  text-decoration:none;
   color:white;
+  font-weight:800;
 }
-.cardFooter span {
-  opacity:.7;
-  font-weight:700;
-}
+.cardFooter span { opacity:.7; font-weight:700; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -140,100 +153,112 @@ st.markdown("""
 # --------------------------------------------------
 st.markdown(f"""
 <div class="hero">
-  {"<video autoplay muted loop playsinline><source src='"+hero_video+"' type='video/mp4'></video>" if hero_video else ""}
-  <div class="heroOverlay"></div>
-  <div class="heroContent">
-    <img src="{logo}">
-    <h1>Singapore Airlines Analytics System</h1>
-    <p>
-      Enterprise cloud-based analytics dashboard for operational performance,
-      customer experience, risk scenarios, and cloud processing concepts.
-    </p>
-    <span class="tag">Streamlit UI</span>
-    <span class="tag">CLI Supported</span>
-    <span class="tag">assets/train.csv</span>
+  {"<video autoplay muted loop playsinline><source src='"+HERO_VIDEO+"' type='video/mp4'></video>" if HERO_VIDEO else ""}
+  <div class="heroInner">
+    <div class="logo"><img src="{LOGO}"></div>
+    <div>
+      <h1>Singapore Airlines Analytics System</h1>
+      <p style="max-width:900px;opacity:.85;font-size:1.15rem">
+        Enterprise cloud-based analytics dashboard for operational performance,
+        customer experience, risk scenarios, and cloud processing concepts.
+      </p>
+    </div>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------
-# CARD HELPER
-# --------------------------------------------------
-def card(title, desc, img, link, btn, hint):
-    return f"""
-    <div class="card">
-      <img src="{img}">
-      <div class="cardBody">
-        <h3>{title}</h3>
-        <p>{desc}</p>
-        <div class="cardFooter">
-          <a href="/{link}" target="_self">➡️ {btn} →</a>
-          <span>{hint}</span>
-        </div>
-      </div>
-    </div>
-    """
-
-# --------------------------------------------------
 # SYSTEM PAGES
 # --------------------------------------------------
-st.markdown("## 🧩 System Pages")
-st.markdown("Enterprise architecture, governance, security & ethics.")
+st.markdown('<div class="sectionTitle">🧩 System Pages</div>', unsafe_allow_html=True)
+st.markdown('<div class="sectionSub">Enterprise architecture, governance, security & ethics.</div>', unsafe_allow_html=True)
 
 st.markdown(f"""
 <div class="grid">
-  {card(
-    "System Overview / Architecture",
-    "View system architecture, shared services, and cloud scalability.",
-    module_imgs["sys"],
-    "pages/System_Overview_Architecture.py",
-    "Open page",
-    "Enterprise design"
-  )}
-  {card(
-    "Security, Risk & Ethics",
-    "Review privacy, governance assumptions, and security controls.",
-    module_imgs["sec"],
-    "pages/Security_Risk_Ethics.py",
-    "Open page",
-    "Protection & ethics"
-  )}
+
+  <div class="card">
+    <img src="{MODULE_IMGS['sys']}">
+    <div class="cardBody">
+      <h3>System Overview / Architecture</h3>
+      <p>View system architecture, shared services, page structure and scalability.</p>
+      <div class="cardFooter">
+        <a href="/pages/System_Overview_Architecture.py">➡️ Open page →</a>
+        <span>Enterprise design</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <img src="{MODULE_IMGS['sec']}">
+    <div class="cardBody">
+      <h3>Security, Risk & Ethics</h3>
+      <p>Review privacy protections, governance assumptions and ethical analytics.</p>
+      <div class="cardFooter">
+        <a href="/pages/Security_Risk_Ethics.py">➡️ Open page →</a>
+        <span>Governance</span>
+      </div>
+    </div>
+  </div>
+
 </div>
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------
 # ANALYTICS MODULES
 # --------------------------------------------------
-st.markdown("## 📊 Analytics Modules")
+st.markdown('<div class="sectionTitle">📊 Analytics Modules</div>', unsafe_allow_html=True)
+st.markdown('<div class="sectionSub">Click Open module → to explore analytics.</div>', unsafe_allow_html=True)
 
 st.markdown(f"""
 <div class="grid">
-  {card("Flight Performance Analytics",
-        "Distance, delays, crew indicators & fuel usage.",
-        module_imgs["m1"],
-        "pages/Module1_Flight_Performance.py",
-        "Open module",
-        "KPIs & charts")}
 
-  {card("Customer Experience Analytics",
-        "Passenger satisfaction & service ratings.",
-        module_imgs["m2"],
-        "pages/Module2_Customer_Experience.py",
-        "Open module",
-        "CX insights")}
+  <div class="card">
+    <img src="{MODULE_IMGS['m1']}">
+    <div class="cardBody">
+      <h3>Flight Performance Analytics</h3>
+      <p>Distance, delays, crew metrics and estimated fuel usage.</p>
+      <div class="cardFooter">
+        <a href="/pages/Module1_Flight_Performance.py">➡️ Open module →</a>
+        <span>KPIs & charts</span>
+      </div>
+    </div>
+  </div>
 
-  {card("Risk & Scenario Simulation",
-        "Monte Carlo risk modelling & scenarios.",
-        module_imgs["m3"],
-        "pages/Module3_Risk_Simulation.py",
-        "Open module",
-        "Probability & risk")}
+  <div class="card">
+    <img src="{MODULE_IMGS['m2']}">
+    <div class="cardBody">
+      <h3>Customer Experience Analytics</h3>
+      <p>Passenger satisfaction, service ratings and behaviour.</p>
+      <div class="cardFooter">
+        <a href="/pages/Module2_Customer_Experience.py">➡️ Open module →</a>
+        <span>Insights</span>
+      </div>
+    </div>
+  </div>
 
-  {card("Cloud Analytics",
-        "Scalable analytics & cloud processing concepts.",
-        module_imgs["m4"],
-        "pages/Module4_Cloud_Analytics.py",
-        "Open module",
-        "Cloud scaling")}
+  <div class="card">
+    <img src="{MODULE_IMGS['m3']}">
+    <div class="cardBody">
+      <h3>Risk & Scenario Simulation</h3>
+      <p>Monte Carlo simulations and operational risk modelling.</p>
+      <div class="cardFooter">
+        <a href="/pages/Module3_Risk_Simulation.py">➡️ Open module →</a>
+        <span>Probabilities</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <img src="{MODULE_IMGS['m4']}">
+    <div class="cardBody">
+      <h3>Cloud Analytics</h3>
+      <p>Batch vs streaming analytics and scalability concepts.</p>
+      <div class="cardFooter">
+        <a href="/pages/Module4_Cloud_Analytics.py">➡️ Open module →</a>
+        <span>Cloud patterns</span>
+      </div>
+    </div>
+  </div>
+
 </div>
 """, unsafe_allow_html=True)
