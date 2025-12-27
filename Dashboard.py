@@ -49,123 +49,118 @@ def run_streamlit_ui():
     SYSTEM_OVERVIEW_PATH = ASSETS_DIR / "system_overview.png"
     SECURITY_RISK_ETHICS_PATH = ASSETS_DIR / "security_risk_ethics.png"
 
-    def _exists(p: Path) -> bool:
+    def exists(p: Path) -> bool:
         try:
             return p.exists() and p.is_file()
         except Exception:
             return False
 
     # ---------------------------------------------------
-    # CSS (hero + module cards + clean layout)
-    # NOTE: Buttons/links are Streamlit widgets (NOT HTML <a>),
-    # so navigation works on Streamlit Cloud in the SAME TAB.
+    # CLEAN PROFESSIONAL THEME CSS
+    # (no broken HTML wrappers — only skinning Streamlit blocks)
     # ---------------------------------------------------
     st.markdown(
         """
         <style>
-          .block-container { padding-top: 1.2rem !important; }
+          /* Page spacing */
+          .block-container { padding-top: 1.2rem !important; padding-bottom: 2.5rem !important; }
+          [data-testid="stAppViewContainer"] {
+            background: #f5f6fa;
+          }
 
-          /* HERO */
-          .heroWrap{
-            position: relative;
-            border-radius: 26px;
-            overflow: hidden;
-            margin-bottom: 2.2rem;
-            box-shadow: 0 18px 45px rgba(0,0,0,0.22);
+          /* Remove extra top whitespace under header */
+          header { background: transparent !important; }
+          [data-testid="stHeader"] { background: transparent !important; }
+
+          /* Hero panel */
+          .heroPanel{
+            background: linear-gradient(135deg, rgba(12, 37, 78, 0.95), rgba(9, 72, 150, 0.92));
             border: 1px solid rgba(255,255,255,0.10);
-          }
-          .heroInner{
-            padding: 1.2rem 1.3rem;
-          }
-
-          /* Cards */
-          .cardShell{
-            background: #0f172a;
             border-radius: 22px;
-            overflow:hidden;
-            border: 1px solid rgba(255,255,255,0.10);
-            box-shadow: 0 18px 45px rgba(0,0,0,0.18);
+            padding: 22px 22px 18px 22px;
+            box-shadow: 0 18px 55px rgba(15, 23, 42, 0.18);
             margin-bottom: 18px;
           }
-          .cardTop{
-            height: 210px;
-            overflow:hidden;
-            background: rgba(255,255,255,0.06);
+          .heroTitle{
+            color:#ffffff;
+            font-weight: 950;
+            letter-spacing: -0.7px;
+            font-size: 3.0rem;
+            line-height: 1.05;
+            margin: 0;
           }
-          .cardTop img{
-            width:100%;
-            height:100%;
-            object-fit: cover;
-            display:block;
+          .heroSub{
+            color: rgba(255,255,255,0.85);
+            font-size: 1.12rem;
+            margin-top: 8px;
+            max-width: 980px;
           }
-          .cardBody{
-            padding: 14px 16px 16px 16px;
+          .pillRow{ display:flex; flex-wrap:wrap; gap:10px; margin-top: 12px; }
+          .pill{
+            display:inline-flex; align-items:center; gap:8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.14);
+            border: 1px solid rgba(255,255,255,0.20);
             color: rgba(255,255,255,0.92);
+            font-weight: 850;
+            font-size: 0.95rem;
+            backdrop-filter: blur(6px);
           }
-          .cardTitle{
-            display:flex;
-            align-items:center;
-            gap: 10px;
-            font-size: 1.28rem;
-            font-weight: 950;
-            margin-bottom: 6px;
-          }
-          .cardDesc{
-            color: rgba(255,255,255,0.74);
-            font-size: 1.02rem;
-            line-height: 1.45;
-            margin-bottom: 12px;
-          }
-          .cardHint{
-            color: rgba(255,255,255,0.70);
-            font-weight: 800;
-            white-space: nowrap;
-            font-size: 0.98rem;
-          }
+          .dot{ width: 10px; height: 10px; border-radius: 999px; background: rgba(255,255,255,0.75); display:inline-block; }
 
-          /* Typography */
+          /* Section titles */
           .sectionTitle{
-            font-size: 2.2rem;
+            font-size: 2.0rem;
             font-weight: 950;
-            letter-spacing: -0.5px;
-            margin: 0 0 0.3rem 0;
+            letter-spacing: -0.4px;
+            margin: 16px 0 4px 0;
             color: #0b2c5f;
           }
           .sectionSub{
-            color: rgba(0,0,0,0.60);
+            color: rgba(15, 23, 42, 0.65);
             font-size: 1.05rem;
-            margin-bottom: 1.1rem;
+            margin-bottom: 12px;
           }
 
-          /* Info cards */
-          .infoCard{
-            background: #ffffff;
-            border-radius: 18px;
-            padding: 16px 18px;
-            border: 1px solid rgba(0,0,0,0.06);
-            box-shadow: 0 12px 35px rgba(0,0,0,0.08);
-            margin-top: 18px;
-          }
-          .infoCard h3{
-            margin: 0 0 8px 0;
-            font-size: 1.25rem;
-            font-weight: 950;
-            color: #0b2c5f;
-          }
-          .infoCard ul{
-            margin: 0;
-            padding-left: 18px;
-            color: rgba(0,0,0,0.70);
-            font-size: 1.02rem;
-            line-height: 1.55;
+          /* Card skin (Streamlit container border wrapper) */
+          div[data-testid="stVerticalBlockBorderWrapper"]{
+            border-radius: 18px !important;
+            border: 1px solid rgba(15, 23, 42, 0.10) !important;
+            background: #ffffff !important;
+            box-shadow: 0 14px 38px rgba(15, 23, 42, 0.08) !important;
           }
 
-          /* Make Streamlit buttons look like CTA */
-          div.stButton > button {
-            width: 100%;
+          /* Make images inside cards rounded */
+          [data-testid="stImage"] img{
+            border-radius: 14px !important;
+          }
+
+          /* CTA buttons */
+          div.stButton > button{
             border-radius: 14px !important;
             padding: 10px 14px !important;
             font-weight: 900 !important;
+            border: 1px solid rgba(12, 37, 78, 0.18) !important;
+            background: linear-gradient(135deg, #0b2c5f, #0a4aa1) !important;
+            color: #ffffff !important;
+          }
+          div.stButton > button:hover{
+            filter: brightness(1.04);
+          }
+
+          /* Small meta text */
+          .meta{
+            color: rgba(15, 23, 42, 0.60);
+            font-weight: 800;
+            font-size: 0.95rem;
+            margin-top: 6px;
+          }
+
+          /* Reduce video chrome spacing */
+          [data-testid="stVideo"]{
+            border-radius: 16px;
+            overflow: hidden;
           }
         </style>
         """,
@@ -173,55 +168,57 @@ def run_streamlit_ui():
     )
 
     # ---------------------------------------------------
-    # HERO (video + logo + title always visible)
-    # Use Streamlit native st.video/st.image (Cloud-safe)
+    # Navigation (same tab)
     # ---------------------------------------------------
-    with st.container():
-        st.markdown('<div class="heroWrap"><div class="heroInner">', unsafe_allow_html=True)
-
-        top_left, top_right = st.columns([1, 3], vertical_alignment="top")
-
-        with top_left:
-            if _exists(LOGO_PATH):
-                st.image(str(LOGO_PATH), width=140)
-            else:
-                st.warning("Logo not found: assets/singapore_airlines_logo.png")
-
-        with top_right:
-            st.markdown(
-                """
-                <div style="
-                  font-size:3.1rem;
-                  font-weight:950;
-                  letter-spacing:-1px;
-                  color:#0b2c5f;
-                  line-height:1.05;
-                  margin:0.15rem 0 0.55rem 0;
-                ">
-                  Singapore Airlines Analytics System
-                </div>
-                <div style="
-                  color:rgba(0,0,0,0.70);
-                  font-size:1.18rem;
-                  max-width:980px;
-                  margin:0 0 0.25rem 0;
-                ">
-                  Enterprise cloud-based analytics dashboard for operational performance, customer experience,
-                  risk scenarios, and cloud processing concepts.
-                </div>
-                """,
-                unsafe_allow_html=True,
+    def go(page_py: str):
+        try:
+            st.switch_page(page_py)
+        except Exception:
+            st.error(
+                f"Navigation failed.\n\n"
+                f"Missing file: `{page_py}`\n"
+                f"Make sure it exists inside the `/pages` folder with the EXACT same name (case-sensitive)."
             )
 
-        if _exists(HERO_VIDEO_PATH):
-            st.video(str(HERO_VIDEO_PATH), autoplay=True, loop=True, muted=True)
-        else:
-            st.warning("Video not found: assets/hero.mp4")
+    # ---------------------------------------------------
+    # HERO (clean + professional)
+    # ---------------------------------------------------
+    st.markdown('<div class="heroPanel">', unsafe_allow_html=True)
 
-        st.markdown("</div></div>", unsafe_allow_html=True)
+    left, right = st.columns([1, 4], vertical_alignment="center")
+    with left:
+        if exists(LOGO_PATH):
+            st.image(str(LOGO_PATH), width=110)
+        else:
+            st.caption("Logo missing: assets/singapore_airlines_logo.png")
+
+    with right:
+        st.markdown('<p class="heroTitle">Singapore Airlines Analytics System</p>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="heroSub">Enterprise cloud-based analytics dashboard for operational performance, '
+            'customer experience, risk scenarios, and cloud processing concepts.</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            """
+            <div class="pillRow">
+              <span class="pill"><span class="dot"></span> Streamlit UI</span>
+              <span class="pill"><span class="dot"></span> CLI supported</span>
+              <span class="pill"><span class="dot"></span> Dataset: assets/train.csv</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    if exists(HERO_VIDEO_PATH):
+        st.video(str(HERO_VIDEO_PATH), autoplay=True, loop=True, muted=True)
+    else:
+        st.warning("Video not found: assets/hero.mp4")
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
     # ---------------------------------------------------
-    # WHAT THIS DASHBOARD DOES
+    # Info cards
     # ---------------------------------------------------
     st.markdown('<div class="sectionTitle">📌 What this dashboard does</div>', unsafe_allow_html=True)
     st.markdown(
@@ -229,85 +226,49 @@ def run_streamlit_ui():
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        """
-        <div class="infoCard">
-          <h3>How to use</h3>
-          <ul>
-            <li>Open a module using <b>Open module</b> or open a governance page using <b>Open page</b>.</li>
-            <li>Each module offers interactive controls (filters/sliders) + charts.</li>
-            <li>Risk Simulation explains uncertainty (probability, percentiles, worst-case).</li>
-            <li>Cloud Analytics demonstrates scalable processing concepts (batch vs streaming).</li>
-          </ul>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        """
-        <div class="infoCard">
-          <h3>Data & concepts</h3>
-          <ul>
-            <li><b>Dataset:</b> synthetic <span style="font-weight:900;">assets/train.csv</span> (academic use).</li>
-            <li><b>Architecture:</b> modular pages + shared services (data / UI helpers).</li>
-            <li><b>UI + CLI:</b> web UI for visuals + menu-driven CLI for quick summaries.</li>
-          </ul>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # ---------------------------------------------------
-    # Navigation helpers (SAME TAB)
-    # IMPORTANT:
-    # - Streamlit multipage navigation should use st.switch_page("pages/YourPage.py")
-    # - This works on Streamlit Cloud and keeps everything in the same tab.
-    # ---------------------------------------------------
-    def go(page_py: str):
-        """Safely navigate to a Streamlit multipage file path."""
-        try:
-            st.switch_page(page_py)
-        except Exception:
-            st.error(
-                f"Navigation failed. Make sure this file exists: {page_py}\n"
-                "Also ensure you are running as a Streamlit multipage app (pages/ folder)."
+    a, b = st.columns(2, gap="large")
+    with a:
+        with st.container(border=True):
+            st.subheader("How to use")
+            st.write(
+                "- Open a module using **Open module** or a governance page using **Open page**.\n"
+                "- Each module includes interactive controls + charts.\n"
+                "- Risk Simulation explains uncertainty (probability, percentiles, worst-case).\n"
+                "- Cloud Analytics demonstrates scalable processing concepts."
             )
 
+    with b:
+        with st.container(border=True):
+            st.subheader("Data & concepts")
+            st.write(
+                "- **Dataset:** synthetic `assets/train.csv` (academic use)\n"
+                "- **Architecture:** modular pages + shared services (data / UI helpers)\n"
+                "- **UI + CLI:** web dashboard + menu-driven CLI summaries"
+            )
+
+    # ---------------------------------------------------
+    # Card renderer (pure Streamlit — GOOD design, no broken HTML)
+    # ---------------------------------------------------
     def render_card(title, emoji, desc, hint, page_py, img_path: Path, btn_label: str, key: str):
-        # Card shell (HTML) + content (Streamlit widgets)
-        st.markdown('<div class="cardShell">', unsafe_allow_html=True)
+        with st.container(border=True):
+            if exists(img_path):
+                st.image(str(img_path), use_container_width=True)
+            else:
+                st.info(f"Missing image: {img_path.name}")
 
-        # Image header (HTML so it fills the full card width/height)
-        if _exists(img_path):
-            img_bytes = img_path.read_bytes()
-            st.markdown('<div class="cardTop">', unsafe_allow_html=True)
-            st.image(img_bytes, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="cardTop"></div>', unsafe_allow_html=True)
+            st.markdown(f"### {emoji} {title}")
+            st.write(desc)
+            st.markdown(f'<div class="meta">{hint}</div>', unsafe_allow_html=True)
 
-        st.markdown('<div class="cardBody">', unsafe_allow_html=True)
-        st.markdown(f'<div class="cardTitle"><span style="font-size:1.35rem;">{emoji}</span><span>{title}</span></div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="cardDesc">{desc}</div>', unsafe_allow_html=True)
-
-        # Button row (Streamlit widgets)
-        btn_col, hint_col = st.columns([1.25, 1], vertical_alignment="center")
-        with btn_col:
-            if st.button(f"➡️ {btn_label} →", key=key, use_container_width=True):
+            if st.button(f"➡️ {btn_label}", key=key, use_container_width=True):
                 go(page_py)
-        with hint_col:
-            st.markdown(f'<div class="cardHint">{hint}</div>', unsafe_allow_html=True)
-
-        st.markdown("</div></div>", unsafe_allow_html=True)
 
     # ---------------------------------------------------
-    # SYSTEM PAGES
+    # System Pages
     # ---------------------------------------------------
-    st.markdown('<div style="height:18px;"></div>', unsafe_allow_html=True)
     st.markdown('<div class="sectionTitle">🧩 System Pages</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="sectionSub">These pages strengthen enterprise design + governance (architecture, security, risk & ethics).</div>',
+        '<div class="sectionSub">Enterprise design + governance pages (architecture, security, risk & ethics).</div>',
         unsafe_allow_html=True,
     )
 
@@ -323,6 +284,7 @@ def run_streamlit_ui():
             btn_label="Open page",
             key="open_system_overview",
         )
+
     with c2:
         render_card(
             title="Security, Risk & Ethics",
@@ -336,12 +298,11 @@ def run_streamlit_ui():
         )
 
     # ---------------------------------------------------
-    # ANALYTICS MODULES
+    # Analytics Modules
     # ---------------------------------------------------
-    st.markdown('<div style="height:18px;"></div>', unsafe_allow_html=True)
     st.markdown('<div class="sectionTitle">📊 Analytics Modules</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="sectionSub">Click <b>Open module →</b> to navigate. Each module uses the same theme and dataset service.</div>',
+        '<div class="sectionSub">Click <b>Open module</b> to navigate. Each module uses the same theme and dataset service.</div>',
         unsafe_allow_html=True,
     )
 
@@ -394,8 +355,7 @@ def run_streamlit_ui():
         )
 
     st.info(
-        "Tip: If an image/video is missing on Streamlit Cloud, confirm the filename EXACTLY and that it’s inside /assets "
-        "(including correct capitalization)."
+        "If an image/video is missing on Streamlit Cloud: verify filename + capitalization and confirm it’s inside `/assets`."
     )
 
 
