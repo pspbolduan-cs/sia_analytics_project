@@ -38,7 +38,6 @@ def _inject_module_css():
         f"""
         <style>
         .stApp {{ background-color: {BACKGROUND_CREAM}; }}
-
         h1, h2, h3 {{ color: {PRIMARY_NAVY}; }}
 
         .sia-subtext {{
@@ -91,25 +90,42 @@ def _inject_module_css():
             font-size: 0.92rem;
         }}
 
-        /* Sticky Back button */
+        /* Top-row back link (non-sticky fallback) */
+        .back-row {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 6px 0 14px 0;
+            font-size: 1rem;
+        }}
+        .back-row a {{
+            text-decoration: none;
+            font-weight: 700;
+            color: {PRIMARY_NAVY};
+        }}
+        .back-row a:hover {{
+            text-decoration: underline;
+        }}
+
+        /* Sticky floating back button */
         .sia-back-float {{
             position: fixed;
-            top: 86px;
-            left: 18px;
-            z-index: 9999;
+            top: 90px;              /* below Streamlit header */
+            right: 18px;            /* keep it away from sidebar */
+            z-index: 999999;
             display: inline-flex;
             align-items: center;
             gap: 10px;
             padding: 10px 14px;
             border-radius: 999px;
-            background: rgba(255,255,255,0.92);
-            border: 1px solid rgba(0,0,0,0.08);
-            box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+            background: rgba(255,255,255,0.94);
+            border: 1px solid rgba(0,0,0,0.10);
+            box-shadow: 0 10px 28px rgba(0,0,0,0.14);
             backdrop-filter: blur(6px);
         }}
         .sia-back-float a {{
             text-decoration: none;
-            font-weight: 700;
+            font-weight: 800;
             color: {PRIMARY_NAVY};
             font-size: 0.98rem;
         }}
@@ -122,14 +138,25 @@ def _inject_module_css():
     )
 
 
-def _render_sticky_back():
-    """Sticky navigation link to the main app root."""
+def _render_back_links():
+    """Render both a normal top link + a sticky floating link."""
     import streamlit as st
 
+    # Normal (always visible at the top)
+    st.markdown(
+        """
+        <div class="back-row">
+            🏠 <a href="./" target="_self">Back to Dashboard</a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Sticky (follows as you scroll)
     st.markdown(
         """
         <div class="sia-back-float">
-          🏠 <a href="./" target="_self">Back to Dashboard</a>
+            🏠 <a href="./" target="_self">Back to Dashboard</a>
         </div>
         """,
         unsafe_allow_html=True,
@@ -164,14 +191,12 @@ def _first_existing_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
 
 
 def simulate_delay_monte_carlo(mean_delay: float, std_delay: float, n: int, crisis_multiplier: float) -> np.ndarray:
-    """Delay simulation based on dataset mean/std and a disruption multiplier."""
     delays = np.random.normal(loc=mean_delay, scale=std_delay, size=n)
     delays = np.clip(delays, 0, None)
     return delays * crisis_multiplier
 
 
 def delay_risk_kpis(delays: np.ndarray, threshold: float) -> dict:
-    """Compute risk KPIs from simulated delays."""
     return {
         "expected": float(np.mean(delays)),
         "p_over": float(np.mean(delays > threshold) * 100.0),
@@ -188,7 +213,6 @@ def simulate_fuel_price_paths(
     annual_drift: float,
     n_paths: int,
 ) -> pd.DataFrame:
-    """Synthetic fuel price simulation (GBM-style) for academic demonstration."""
     dt = 1 / 365.0
     prices = np.zeros((days + 1, n_paths), dtype=float)
     prices[0, :] = start_price
@@ -210,7 +234,9 @@ def run_streamlit():
 
     _safe_apply_global_styles()
     _inject_module_css()
-    _render_sticky_back()
+
+    # This call is what makes the button appear
+    _render_back_links()
 
     st.title("⚠️ Risk & Scenario Simulation")
     st.markdown(
@@ -300,12 +326,10 @@ def run_streamlit():
     trend = tmp.groupby("distance_bucket", observed=True)["delay"].mean().reset_index()
     trend["distance_bucket"] = trend["distance_bucket"].astype(str)
     trend = trend.set_index("distance_bucket")
-
     st.line_chart(trend)
 
 
 def run_cli():
-    """CLI entry point for lightweight non-visual demonstration."""
     from services.data_service import load_data
 
     print("\n--- Risk & Scenario Simulation (CLI) ---")
