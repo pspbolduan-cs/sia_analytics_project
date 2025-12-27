@@ -10,11 +10,13 @@
 # academic demonstration purposes.
 # ============================================================
 
+from typing import Optional, List, Dict
+
 import numpy as np
 import pandas as pd
 
 
-def _safe_apply_global_styles():
+def _safe_apply_global_styles() -> bool:
     """Apply shared UI theme if available (safe for CLI too)."""
     try:
         from services.ui_service import apply_global_styles
@@ -24,7 +26,7 @@ def _safe_apply_global_styles():
         return False
 
 
-def _inject_module_css():
+def _inject_module_css() -> None:
     """Inject module-specific UI styles using the same palette as ui_service.py."""
     import streamlit as st
 
@@ -92,13 +94,13 @@ def _inject_module_css():
             font-size: 0.92rem;
         }}
 
-        /* Floating back button */
+        /* Sticky Back button */
         .sia-back-float {{
             position: fixed;
             top: 86px;
             left: 18px;
             z-index: 9999;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 10px;
             padding: 10px 14px;
@@ -123,7 +125,25 @@ def _inject_module_css():
     )
 
 
-def _kpi_card(st, title: str, value: str, badge: str = ""):
+def _render_sticky_back_to_dashboard() -> None:
+    """
+    Sticky navigation link.
+    Streamlit multipage typically exposes the main page at /Dashboard,
+    so we link there instead of "/" to avoid routing issues.
+    """
+    import streamlit as st
+
+    st.markdown(
+        """
+        <div class="sia-back-float">
+          🏠 <a href="/Dashboard" target="_self">Back to Dashboard</a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _kpi_card(st, title: str, value: str, badge: str = "") -> None:
     """Render a KPI card."""
     badge_html = f'<div class="kpi-badge">{badge}</div>' if badge else ""
     st.markdown(
@@ -138,7 +158,7 @@ def _kpi_card(st, title: str, value: str, badge: str = ""):
     )
 
 
-def _first_existing_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
+def _first_existing_col(df: pd.DataFrame, candidates: List[str]) -> Optional[str]:
     """Return the first matching column name in df from candidates (case-safe)."""
     cols_lower = {c.lower(): c for c in df.columns}
     for cand in candidates:
@@ -160,7 +180,7 @@ def simulate_delay_monte_carlo(mean_delay: float, std_delay: float, n: int, cris
     return delays * crisis_multiplier
 
 
-def delay_risk_kpis(delays: np.ndarray, threshold: float) -> dict:
+def delay_risk_kpis(delays: np.ndarray, threshold: float) -> Dict[str, float]:
     """Compute risk KPIs from simulated delays."""
     return {
         "expected": float(np.mean(delays)),
@@ -197,22 +217,13 @@ def simulate_fuel_price_paths(
 # -----------------------------
 # Streamlit UI
 # -----------------------------
-def run_streamlit():
+def run_streamlit() -> None:
     import streamlit as st
     from services.data_service import load_data
 
     _safe_apply_global_styles()
     _inject_module_css()
-
-    # Floating Back to Dashboard (stays visible while scrolling)
-    st.markdown(
-        """
-        <div class="sia-back-float">
-          🏠 <a href="/" target="_self">Back to Dashboard</a>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    _render_sticky_back_to_dashboard()
 
     st.title("⚠️ Risk & Scenario Simulation")
     st.markdown(
@@ -256,7 +267,7 @@ def run_streamlit():
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        sims = st.slider("Monte Carlo simulations", 2000, 50000, 12000, step=2000)
+        sims = st.slider("Simulation runs", 2000, 50000, 12000, step=2000)
     with c2:
         threshold = st.slider("Delay risk threshold (min)", 15, 180, 60, step=5)
     with c3:
@@ -287,7 +298,7 @@ def run_streamlit():
     st.bar_chart(hist_df)
 
     st.markdown('<div class="section-title">🛢️ Fuel Price Volatility (Simulation)</div>', unsafe_allow_html=True)
-    st.markdown('<div class="hint">GBM-style synthetic simulation for academic demonstration.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hint">Synthetic simulation for academic demonstration.</div>', unsafe_allow_html=True)
 
     f1, f2, f3 = st.columns(3)
     with f1:
@@ -332,7 +343,7 @@ def run_streamlit():
 # -----------------------------
 # CLI
 # -----------------------------
-def run_cli():
+def run_cli() -> None:
     """CLI entry point for lightweight non-visual demonstration."""
     from services.data_service import load_data
 
@@ -365,7 +376,7 @@ def run_cli():
     print(f"Worst case: {kpis['worst']:.2f} min")
 
 
-def main(mode="streamlit"):
+def main(mode: str = "streamlit") -> None:
     if mode == "cli":
         run_cli()
     else:
