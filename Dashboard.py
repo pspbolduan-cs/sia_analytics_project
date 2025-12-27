@@ -193,6 +193,11 @@ def run_streamlit_ui():
         box-shadow: 0 18px 45px rgba(0,0,0,0.18);
         transition: transform .15s ease, box-shadow .15s ease;
         margin-bottom: 10px;
+
+        /* ✅ MAKE ALL CARDS SAME HEIGHT so buttons align */
+        display: flex;
+        flex-direction: column;
+        height: 460px; /* tweak if needed: 440–500 */
       }
       .moduleCard:hover{
         transform: translateY(-2px);
@@ -221,6 +226,9 @@ def run_streamlit_ui():
       .moduleInner{
         padding: 16px 18px 16px 18px;
         color: rgba(255,255,255,0.92);
+
+        /* ✅ Allow text area to stretch consistently */
+        flex: 1;
       }
       .moduleTitleRow{
         display:flex;
