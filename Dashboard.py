@@ -58,7 +58,6 @@ def run_streamlit_ui():
             return False
 
     def to_data_uri(p: Path, mime: str) -> str:
-        """Base64 data URI (used for hero bg video/logo + card images so they stay inside HTML boxes)."""
         if not exists(p):
             return ""
         b64 = base64.b64encode(p.read_bytes()).decode("utf-8")
@@ -75,11 +74,12 @@ def run_streamlit_ui():
             mime = "image/webp"
         return to_data_uri(p, mime)
 
+    # NOTE: hero video as data URI can be heavy; if it fails, we still show a clean fallback with title.
     hero_video_uri = to_data_uri(HERO_VIDEO_PATH, "video/mp4")
     logo_uri = img_to_data_uri(LOGO_PATH)
 
     # ---------------------------------------------------
-    # GLOBAL STYLES (keep title as-is; clean layout)
+    # GLOBAL STYLES (for the main page — NOT the hero iframe)
     # ---------------------------------------------------
     st.markdown(
         """
@@ -111,103 +111,25 @@ def run_streamlit_ui():
             margin-bottom: 10px;
           }
 
-          /* ----- HERO (video behind title) ----- */
-          .hero{
-            position: relative;
-            height: 380px;
-            width: 100%;
-            border-radius: 16px;
-            overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.16);
-            box-shadow: 0 18px 50px rgba(15,23,42,0.18);
-            background: #0b2c5f;
-            margin-bottom: 12px;
-          }
-          .heroBg{
-            position:absolute; inset:0;
-            width:100%; height:100%;
-            object-fit: cover;
-            transform: scale(1.02);
-            filter: saturate(1.05) contrast(1.03);
-          }
-          .heroFallback{
-            position:absolute; inset:0;
-            background: radial-gradient(800px 400px at 20% 20%, rgba(255,255,255,0.10), transparent 60%),
-                        linear-gradient(135deg, rgba(7, 18, 40, 0.96), rgba(10, 58, 128, 0.86));
-          }
-          .heroOverlay{
-            position:absolute; inset:0;
-            background: linear-gradient(135deg,
-              rgba(9, 18, 38, 0.88) 0%,
-              rgba(10, 58, 128, 0.60) 45%,
-              rgba(9, 18, 38, 0.90) 100%);
-          }
-          .heroContent{
-            position: relative;
-            height: 100%;
-            padding: 22px 22px 18px 22px;
-            display:flex;
-            flex-direction: column;
-            justify-content: center;
-            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-          }
-          .heroTop{
-            display:flex;
-            gap: 16px;
-            align-items:flex-start;
-          }
-          .heroLogo{
-            height: 56px;
-            width:auto;
-            background: rgba(255,255,255,0.92);
-            border-radius: 12px;
-            padding: 10px 12px;
-            border: 1px solid rgba(255,255,255,0.35);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.22);
-          }
-          .heroText{ flex: 1; min-width: 240px; }
-          /* TITLE MUST NOT CHANGE (you said it’s perfect) */
-          .heroTitle{
-            color: #fff;
-            font-weight: 950;
-            letter-spacing: -0.8px;
-            font-size: 44px;
-            line-height: 1.05;
-          }
-          .heroSub{
-            margin-top: 10px;
-            color: rgba(255,255,255,0.86);
-            font-size: 16.8px;
-            line-height: 1.55;
-            max-width: 980px;
-          }
-          .heroPills{
-            display:flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 14px;
-          }
-          .heroPill{
-            display:inline-flex;
-            align-items:center;
-            gap: 8px;
-            padding: 8px 12px;
-            border-radius: 999px;
-            background: rgba(255,255,255,0.14);
-            border: 1px solid rgba(255,255,255,0.20);
-            color: rgba(255,255,255,0.92);
-            font-weight: 850;
-            font-size: 13.8px;
-            backdrop-filter: blur(6px);
-          }
-          .heroDot{
-            width: 10px; height: 10px;
-            border-radius: 999px;
-            background: rgba(255,255,255,0.82);
-            display:inline-block;
+          /* tighter columns */
+          div[data-testid="column"]{
+            padding-left: 0.35rem !important;
+            padding-right: 0.35rem !important;
           }
 
-          /* ----- 6 CARDS (real visible boxes) ----- */
+          /* button look + compact */
+          div.stButton > button{
+            width: 100%;
+            border-radius: 10px !important;
+            padding: 10px 12px !important;
+            font-weight: 900 !important;
+            border: 1px solid rgba(12, 37, 78, 0.16) !important;
+            background: linear-gradient(135deg, #0B2C5F, #0A4AA1) !important;
+            color: #FFFFFF !important;
+          }
+          div.stButton > button:hover{ filter: brightness(1.06); }
+
+          /* ----- 6 CARDS ----- */
           .siaCard{
             background: #ffffff;
             border: 1px solid rgba(15, 23, 42, 0.12);
@@ -256,30 +178,6 @@ def run_streamlit_ui():
             font-size: 0.95rem;
             margin: 0;
           }
-
-          /* tighter columns */
-          div[data-testid="column"]{
-            padding-left: 0.35rem !important;
-            padding-right: 0.35rem !important;
-          }
-
-          /* button look + compact */
-          div.stButton > button{
-            width: 100%;
-            border-radius: 10px !important;
-            padding: 10px 12px !important;
-            font-weight: 900 !important;
-            border: 1px solid rgba(12, 37, 78, 0.16) !important;
-            background: linear-gradient(135deg, #0B2C5F, #0A4AA1) !important;
-            color: #FFFFFF !important;
-          }
-          div.stButton > button:hover{ filter: brightness(1.06); }
-
-          @media (max-width: 980px){
-            .hero{ height: 420px; }
-            .heroTitle{ font-size: 34px; }
-            .siaImgWrap{ height: 200px; }
-          }
         </style>
         """,
         unsafe_allow_html=True,
@@ -298,8 +196,10 @@ def run_streamlit_ui():
             )
 
     # ---------------------------------------------------
-    # HERO (video behind title) — rendered via components.html to avoid showing raw HTML
+    # HERO (video behind title) — CSS MUST be inside the iframe!
     # ---------------------------------------------------
+    hero_height = 380
+
     video_block = (
         f"""
         <video class="heroBg" autoplay muted loop playsinline>
@@ -307,23 +207,29 @@ def run_streamlit_ui():
         </video>
         """
         if hero_video_uri
-        else """<div class="heroFallback"></div>"""
+        else ""
     )
+
     logo_block = f"""<img class="heroLogo" src="{logo_uri}" alt="SIA Logo">""" if logo_uri else ""
 
     hero_html = f"""
     <div class="hero">
       {video_block}
+      <div class="heroFallback"></div>
       <div class="heroOverlay"></div>
+
       <div class="heroContent">
         <div class="heroTop">
           {logo_block}
           <div class="heroText">
+            <!-- DO NOT CHANGE TITLE -->
             <div class="heroTitle">Singapore Airlines Analytics System</div>
+
             <div class="heroSub">
               Enterprise cloud-based analytics dashboard for operational performance, customer experience,
               risk scenarios, and cloud processing concepts.
             </div>
+
             <div class="heroPills">
               <span class="heroPill"><span class="heroDot"></span> Streamlit UI</span>
               <span class="heroPill"><span class="heroDot"></span> CLI supported</span>
@@ -333,8 +239,126 @@ def run_streamlit_ui():
         </div>
       </div>
     </div>
+
+    <style>
+      body {{ margin: 0; }}
+      .hero {{
+        position: relative;
+        height: {hero_height}px;
+        width: 100%;
+        border-radius: 16px;
+        overflow: hidden;
+        background: #0b2c5f;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      }}
+
+      .heroBg {{
+        position:absolute; inset:0;
+        width:100%; height:100%;
+        object-fit: cover;
+        transform: scale(1.02);
+        filter: saturate(1.05) contrast(1.03);
+        z-index: 1;
+      }}
+
+      /* Always present fallback behind everything (video sits above it if it loads) */
+      .heroFallback {{
+        position:absolute; inset:0;
+        background:
+          radial-gradient(800px 420px at 20% 20%, rgba(255,255,255,0.10), transparent 60%),
+          linear-gradient(135deg, rgba(7, 18, 40, 0.96), rgba(10, 58, 128, 0.86));
+        z-index: 0;
+      }}
+
+      .heroOverlay {{
+        position:absolute; inset:0;
+        background: linear-gradient(135deg,
+          rgba(9, 18, 38, 0.88) 0%,
+          rgba(10, 58, 128, 0.60) 45%,
+          rgba(9, 18, 38, 0.90) 100%);
+        z-index: 2;
+      }}
+
+      .heroContent {{
+        position: relative;
+        z-index: 3;
+        height: 100%;
+        padding: 22px 22px 18px 22px;
+        display:flex;
+        flex-direction: column;
+        justify-content: center;
+      }}
+
+      .heroTop {{
+        display:flex;
+        gap: 16px;
+        align-items:flex-start;
+      }}
+
+      .heroLogo {{
+        height: 56px;
+        width:auto;
+        background: rgba(255,255,255,0.92);
+        border-radius: 12px;
+        padding: 10px 12px;
+        border: 1px solid rgba(255,255,255,0.35);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.22);
+      }}
+
+      .heroText {{ flex: 1; min-width: 240px; }}
+
+      /* TITLE MUST NOT CHANGE */
+      .heroTitle {{
+        color: #fff;
+        font-weight: 950;
+        letter-spacing: -0.8px;
+        font-size: 44px;
+        line-height: 1.05;
+      }}
+
+      .heroSub {{
+        margin-top: 10px;
+        color: rgba(255,255,255,0.86);
+        font-size: 16.8px;
+        line-height: 1.55;
+        max-width: 980px;
+      }}
+
+      .heroPills {{
+        display:flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }}
+
+      .heroPill {{
+        display:inline-flex;
+        align-items:center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.14);
+        border: 1px solid rgba(255,255,255,0.20);
+        color: rgba(255,255,255,0.92);
+        font-weight: 850;
+        font-size: 13.8px;
+        backdrop-filter: blur(6px);
+      }}
+
+      .heroDot {{
+        width: 10px; height: 10px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.82);
+        display:inline-block;
+      }}
+
+      @media (max-width: 980px) {{
+        .hero {{ height: 420px; }}
+        .heroTitle {{ font-size: 34px; }}
+      }}
+    </style>
     """
-    components.html(hero_html, height=392)
+    components.html(hero_html, height=hero_height + 12)
 
     # ---------------------------------------------------
     # What this dashboard does
@@ -366,7 +390,6 @@ def run_streamlit_ui():
 
     # ---------------------------------------------------
     # 6 CLEAN BOXES (2 system pages + 4 modules)
-    # Each box is a real HTML card so image + title are connected in one container.
     # ---------------------------------------------------
     def render_box_card(title, emoji, desc, hint, page_py, img_path: Path, btn_label, key):
         img_uri = img_to_data_uri(img_path)
@@ -386,11 +409,10 @@ def run_streamlit_ui():
             unsafe_allow_html=True,
         )
 
-        # Button below card; visually close and consistent
         if st.button(f"➡️ {btn_label}", key=key, use_container_width=True):
             go(page_py)
 
-    # ----------------- SYSTEM PAGES -----------------
+    # System Pages
     st.markdown('<div class="secTitle">🧩 System Pages</div>', unsafe_allow_html=True)
     st.markdown(
         '<div class="secSub">Enterprise design + governance pages (architecture, security, risk & ethics).</div>',
@@ -400,80 +422,59 @@ def run_streamlit_ui():
     c1, c2 = st.columns(2, gap="small")
     with c1:
         render_box_card(
-            title="System Overview / Architecture",
-            emoji="🧱",
-            desc="View the system architecture, shared services, page structure, and cloud scalability mapping.",
-            hint="Enterprise design + scalability",
-            page_py="pages/System_Overview_Architecture.py",
-            img_path=SYSTEM_OVERVIEW_PATH,
-            btn_label="Open page",
-            key="open_system_overview",
+            "System Overview / Architecture", "🧱",
+            "View the system architecture, shared services, page structure, and cloud scalability mapping.",
+            "Enterprise design + scalability",
+            "pages/System_Overview_Architecture.py",
+            SYSTEM_OVERVIEW_PATH, "Open page", "open_system_overview"
         )
     with c2:
         render_box_card(
-            title="Security, Risk & Ethics",
-            emoji="🛡️",
-            desc="Review privacy protections, governance assumptions, security controls, and ethical analytics considerations.",
-            hint="Protection + governance",
-            page_py="pages/Security_Risk_Ethics.py",
-            img_path=SECURITY_RISK_ETHICS_PATH,
-            btn_label="Open page",
-            key="open_security_risk_ethics",
+            "Security, Risk & Ethics", "🛡️",
+            "Review privacy protections, governance assumptions, security controls, and ethical analytics considerations.",
+            "Protection + governance",
+            "pages/Security_Risk_Ethics.py",
+            SECURITY_RISK_ETHICS_PATH, "Open page", "open_security_risk_ethics"
         )
 
-    # ----------------- ANALYTICS MODULES -----------------
+    # Analytics Modules
     st.markdown('<div class="secTitle">📊 Analytics Modules</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="secSub">Click <b>Open module</b> to navigate.</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="secSub">Click <b>Open module</b> to navigate.</div>', unsafe_allow_html=True)
 
     r1c1, r1c2 = st.columns(2, gap="small")
     with r1c1:
         render_box_card(
-            title="Flight Performance Analytics",
-            emoji="✈️",
-            desc="Explore distance distribution, delay trends, crew/service indicators, and estimated fuel usage.",
-            hint="Interactive KPIs & charts",
-            page_py="pages/Module1_Flight_Performance.py",
-            img_path=MODULE_1_PATH,
-            btn_label="Open module",
-            key="open_module_1",
+            "Flight Performance Analytics", "✈️",
+            "Explore distance distribution, delay trends, crew/service indicators, and estimated fuel usage.",
+            "Interactive KPIs & charts",
+            "pages/Module1_Flight_Performance.py",
+            MODULE_1_PATH, "Open module", "open_module_1"
         )
     with r1c2:
         render_box_card(
-            title="Customer Experience Analytics",
-            emoji="😊",
-            desc="Analyse satisfaction outcomes, service ratings, and behavioural indicators affecting passenger experience.",
-            hint="Service quality insights",
-            page_py="pages/Module2_Customer_Experience.py",
-            img_path=MODULE_2_PATH,
-            btn_label="Open module",
-            key="open_module_2",
+            "Customer Experience Analytics", "😊",
+            "Analyse satisfaction outcomes, service ratings, and behavioural indicators affecting passenger experience.",
+            "Service quality insights",
+            "pages/Module2_Customer_Experience.py",
+            MODULE_2_PATH, "Open module", "open_module_2"
         )
 
     r2c1, r2c2 = st.columns(2, gap="small")
     with r2c1:
         render_box_card(
-            title="Risk & Scenario Simulation",
-            emoji="⚠️",
-            desc="Model operational uncertainty using Monte Carlo simulation and scenario-based disruption controls.",
-            hint="Probabilities, percentiles, worst-case",
-            page_py="pages/Module3_Risk_Simulation.py",
-            img_path=MODULE_3_PATH,
-            btn_label="Open module",
-            key="open_module_3",
+            "Risk & Scenario Simulation", "⚠️",
+            "Model operational uncertainty using Monte Carlo simulation and scenario-based disruption controls.",
+            "Probabilities, percentiles, worst-case",
+            "pages/Module3_Risk_Simulation.py",
+            MODULE_3_PATH, "Open module", "open_module_3"
         )
     with r2c2:
         render_box_card(
-            title="Cloud Analytics",
-            emoji="☁️",
-            desc="Demonstrate scalable processing concepts and cloud-oriented analytics patterns.",
-            hint="Batch vs streaming + scaling",
-            page_py="pages/Module4_Cloud_Analytics.py",
-            img_path=MODULE_4_PATH,
-            btn_label="Open module",
-            key="open_module_4",
+            "Cloud Analytics", "☁️",
+            "Demonstrate scalable processing concepts and cloud-oriented analytics patterns.",
+            "Batch vs streaming + scaling",
+            "pages/Module4_Cloud_Analytics.py",
+            MODULE_4_PATH, "Open module", "open_module_4"
         )
 
 
