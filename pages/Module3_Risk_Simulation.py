@@ -92,17 +92,30 @@ def _inject_module_css():
             font-size: 0.92rem;
         }}
 
-        .back-row {{
+        /* Floating back button */
+        .sia-back-float {{
+            position: fixed;
+            top: 86px;
+            left: 18px;
+            z-index: 9999;
             display: flex;
             align-items: center;
             gap: 10px;
-            font-size: 1rem;
-            margin-bottom: 1.0rem;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.92);
+            border: 1px solid rgba(0,0,0,0.08);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+            backdrop-filter: blur(6px);
         }}
-        .back-row a {{
+        .sia-back-float a {{
             text-decoration: none;
-            font-weight: 600;
+            font-weight: 700;
             color: {PRIMARY_NAVY};
+            font-size: 0.98rem;
+        }}
+        .sia-back-float a:hover {{
+            text-decoration: underline;
         }}
         </style>
         """,
@@ -191,10 +204,11 @@ def run_streamlit():
     _safe_apply_global_styles()
     _inject_module_css()
 
+    # Floating Back to Dashboard (stays visible while scrolling)
     st.markdown(
         """
-        <div class="back-row">
-            🏠 <a href="/" target="_self">Back to Dashboard</a>
+        <div class="sia-back-float">
+          🏠 <a href="/" target="_self">Back to Dashboard</a>
         </div>
         """,
         unsafe_allow_html=True,
