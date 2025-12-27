@@ -10,13 +10,11 @@
 # academic demonstration purposes.
 # ============================================================
 
-from typing import Optional, List, Dict
-
 import numpy as np
 import pandas as pd
 
 
-def _safe_apply_global_styles() -> bool:
+def _safe_apply_global_styles():
     """Apply shared UI theme if available (safe for CLI too)."""
     try:
         from services.ui_service import apply_global_styles
@@ -26,12 +24,11 @@ def _safe_apply_global_styles() -> bool:
         return False
 
 
-def _inject_module_css() -> None:
+def _inject_module_css():
     """Inject module-specific UI styles using the same palette as ui_service.py."""
     import streamlit as st
 
     PRIMARY_NAVY = "#002663"
-    ACCENT_GOLD = "#FFED4D"
     BACKGROUND_CREAM = "#F5F3EE"
     TEXT_GREY = "#555555"
     CARD_BG = "#FFFFFF"
@@ -125,25 +122,21 @@ def _inject_module_css() -> None:
     )
 
 
-def _render_sticky_back_to_dashboard() -> None:
-    """
-    Sticky navigation link.
-    Streamlit multipage typically exposes the main page at /Dashboard,
-    so we link there instead of "/" to avoid routing issues.
-    """
+def _render_sticky_back():
+    """Sticky navigation link to the main app root."""
     import streamlit as st
 
     st.markdown(
         """
         <div class="sia-back-float">
-          🏠 <a href="/Dashboard" target="_self">Back to Dashboard</a>
+          🏠 <a href="./" target="_self">Back to Dashboard</a>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
 
-def _kpi_card(st, title: str, value: str, badge: str = "") -> None:
+def _kpi_card(st, title: str, value: str, badge: str = ""):
     """Render a KPI card."""
     badge_html = f'<div class="kpi-badge">{badge}</div>' if badge else ""
     st.markdown(
@@ -158,7 +151,7 @@ def _kpi_card(st, title: str, value: str, badge: str = "") -> None:
     )
 
 
-def _first_existing_col(df: pd.DataFrame, candidates: List[str]) -> Optional[str]:
+def _first_existing_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
     """Return the first matching column name in df from candidates (case-safe)."""
     cols_lower = {c.lower(): c for c in df.columns}
     for cand in candidates:
@@ -170,9 +163,6 @@ def _first_existing_col(df: pd.DataFrame, candidates: List[str]) -> Optional[str
     return None
 
 
-# -----------------------------
-# Simulation Models
-# -----------------------------
 def simulate_delay_monte_carlo(mean_delay: float, std_delay: float, n: int, crisis_multiplier: float) -> np.ndarray:
     """Delay simulation based on dataset mean/std and a disruption multiplier."""
     delays = np.random.normal(loc=mean_delay, scale=std_delay, size=n)
@@ -180,7 +170,7 @@ def simulate_delay_monte_carlo(mean_delay: float, std_delay: float, n: int, cris
     return delays * crisis_multiplier
 
 
-def delay_risk_kpis(delays: np.ndarray, threshold: float) -> Dict[str, float]:
+def delay_risk_kpis(delays: np.ndarray, threshold: float) -> dict:
     """Compute risk KPIs from simulated delays."""
     return {
         "expected": float(np.mean(delays)),
@@ -214,16 +204,13 @@ def simulate_fuel_price_paths(
     return out
 
 
-# -----------------------------
-# Streamlit UI
-# -----------------------------
-def run_streamlit() -> None:
+def run_streamlit():
     import streamlit as st
     from services.data_service import load_data
 
     _safe_apply_global_styles()
     _inject_module_css()
-    _render_sticky_back_to_dashboard()
+    _render_sticky_back()
 
     st.title("⚠️ Risk & Scenario Simulation")
     st.markdown(
@@ -235,22 +222,11 @@ def run_streamlit() -> None:
 
     delay_col = _first_existing_col(
         df,
-        [
-            "Departure Delay in Minutes",
-            "DepartureDelay",
-            "DepDelay",
-            "departure_delay",
-            "dep_delay",
-        ],
+        ["Departure Delay in Minutes", "DepartureDelay", "DepDelay", "departure_delay", "dep_delay"],
     )
     dist_col = _first_existing_col(
         df,
-        [
-            "Flight Distance",
-            "FlightDistance",
-            "Distance",
-            "flight_distance",
-        ],
+        ["Flight Distance", "FlightDistance", "Distance", "flight_distance"],
     )
 
     if delay_col is None:
@@ -267,7 +243,7 @@ def run_streamlit() -> None:
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        sims = st.slider("Simulation runs", 2000, 50000, 12000, step=2000)
+        sims = st.slider("Monte Carlo simulations", 2000, 50000, 12000, step=2000)
     with c2:
         threshold = st.slider("Delay risk threshold (min)", 15, 180, 60, step=5)
     with c3:
@@ -289,7 +265,7 @@ def run_streamlit() -> None:
         _kpi_card(st, "Worst Case", f"{kpis['worst']:.1f}", badge="Tail risk")
 
     st.markdown('<div class="section-title">📊 Simulated Delay Distribution</div>', unsafe_allow_html=True)
-    st.markdown('<div class="hint">Binned histogram of simulated delays (auto-generated on load).</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hint">Binned histogram of simulated delays.</div>', unsafe_allow_html=True)
 
     upper = int(max(180, np.percentile(delays, 99) + 30))
     bins = np.arange(0, upper + 5, 5)
@@ -302,25 +278,13 @@ def run_streamlit() -> None:
 
     f1, f2, f3 = st.columns(3)
     with f1:
-        start_price = st.number_input(
-            "Starting fuel price (USD)",
-            min_value=20.0,
-            max_value=250.0,
-            value=85.0,
-            step=1.0,
-        )
+        start_price = st.number_input("Starting fuel price (USD)", min_value=20.0, max_value=250.0, value=85.0, step=1.0)
     with f2:
         days = st.slider("Days to simulate", 30, 365, 180, step=15)
     with f3:
         vol = st.slider("Annual volatility", 0.05, 0.80, 0.35, step=0.05)
 
-    fuel_paths = simulate_fuel_price_paths(
-        start_price=start_price,
-        days=days,
-        annual_vol=vol,
-        annual_drift=0.03,
-        n_paths=18,
-    )
+    fuel_paths = simulate_fuel_price_paths(start_price, days, annual_vol=vol, annual_drift=0.03, n_paths=18)
     st.line_chart(fuel_paths)
 
     st.markdown('<div class="section-title">🧭 Context: Distance vs Delay (Dataset Trend)</div>', unsafe_allow_html=True)
@@ -340,10 +304,7 @@ def run_streamlit() -> None:
     st.line_chart(trend)
 
 
-# -----------------------------
-# CLI
-# -----------------------------
-def run_cli() -> None:
+def run_cli():
     """CLI entry point for lightweight non-visual demonstration."""
     from services.data_service import load_data
 
@@ -376,7 +337,7 @@ def run_cli() -> None:
     print(f"Worst case: {kpis['worst']:.2f} min")
 
 
-def main(mode: str = "streamlit") -> None:
+def main(mode="streamlit"):
     if mode == "cli":
         run_cli()
     else:
