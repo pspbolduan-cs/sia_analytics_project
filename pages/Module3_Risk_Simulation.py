@@ -50,7 +50,7 @@ def _inject_module_css():
             background: {CARD_BG};
             border: 1px solid {CARD_BORDER};
             border-radius: 16px;
-            padding: 16px 16px;
+            padding: 16px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.06);
             height: 100%;
         }}
@@ -90,28 +90,11 @@ def _inject_module_css():
             font-size: 0.92rem;
         }}
 
-        /* Top-row back link (non-sticky fallback) */
-        .back-row {{
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 6px 0 14px 0;
-            font-size: 1rem;
-        }}
-        .back-row a {{
-            text-decoration: none;
-            font-weight: 700;
-            color: {PRIMARY_NAVY};
-        }}
-        .back-row a:hover {{
-            text-decoration: underline;
-        }}
-
-        /* Sticky floating back button */
+        /* Floating back button ONLY */
         .sia-back-float {{
             position: fixed;
-            top: 90px;              /* below Streamlit header */
-            right: 18px;            /* keep it away from sidebar */
+            top: 90px;
+            right: 18px;
             z-index: 999999;
             display: inline-flex;
             align-items: center;
@@ -139,20 +122,9 @@ def _inject_module_css():
 
 
 def _render_back_links():
-    """Render both a normal top link + a sticky floating link."""
+    """Render ONLY the floating back-to-dashboard link."""
     import streamlit as st
 
-    # Normal (always visible at the top)
-    st.markdown(
-        """
-        <div class="back-row">
-            🏠 <a href="./" target="_self">Back to Dashboard</a>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # Sticky (follows as you scroll)
     st.markdown(
         """
         <div class="sia-back-float">
@@ -164,7 +136,6 @@ def _render_back_links():
 
 
 def _kpi_card(st, title: str, value: str, badge: str = ""):
-    """Render a KPI card."""
     badge_html = f'<div class="kpi-badge">{badge}</div>' if badge else ""
     st.markdown(
         f"""
@@ -179,53 +150,45 @@ def _kpi_card(st, title: str, value: str, badge: str = ""):
 
 
 def _first_existing_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
-    """Return the first matching column name in df from candidates (case-safe)."""
     cols_lower = {c.lower(): c for c in df.columns}
     for cand in candidates:
         if cand in df.columns:
             return cand
-        cl = cand.lower()
-        if cl in cols_lower:
-            return cols_lower[cl]
+        if cand.lower() in cols_lower:
+            return cols_lower[cand.lower()]
     return None
 
 
-def simulate_delay_monte_carlo(mean_delay: float, std_delay: float, n: int, crisis_multiplier: float) -> np.ndarray:
-    delays = np.random.normal(loc=mean_delay, scale=std_delay, size=n)
+def simulate_delay_monte_carlo(mean_delay, std_delay, n, crisis_multiplier):
+    delays = np.random.normal(mean_delay, std_delay, n)
     delays = np.clip(delays, 0, None)
     return delays * crisis_multiplier
 
 
-def delay_risk_kpis(delays: np.ndarray, threshold: float) -> dict:
+def delay_risk_kpis(delays, threshold):
     return {
-        "expected": float(np.mean(delays)),
-        "p_over": float(np.mean(delays > threshold) * 100.0),
-        "p95": float(np.percentile(delays, 95)),
-        "p99": float(np.percentile(delays, 99)),
-        "worst": float(np.max(delays)),
+        "expected": np.mean(delays),
+        "p_over": np.mean(delays > threshold) * 100,
+        "p95": np.percentile(delays, 95),
+        "p99": np.percentile(delays, 99),
+        "worst": np.max(delays),
     }
 
 
-def simulate_fuel_price_paths(
-    start_price: float,
-    days: int,
-    annual_vol: float,
-    annual_drift: float,
-    n_paths: int,
-) -> pd.DataFrame:
-    dt = 1 / 365.0
-    prices = np.zeros((days + 1, n_paths), dtype=float)
-    prices[0, :] = start_price
+def simulate_fuel_price_paths(start_price, days, annual_vol, annual_drift, n_paths):
+    dt = 1 / 365
+    prices = np.zeros((days + 1, n_paths))
+    prices[0] = start_price
 
     for t in range(1, days + 1):
         z = np.random.normal(0, 1, n_paths)
-        prices[t, :] = prices[t - 1, :] * np.exp(
+        prices[t] = prices[t - 1] * np.exp(
             (annual_drift - 0.5 * annual_vol**2) * dt + annual_vol * np.sqrt(dt) * z
         )
 
-    out = pd.DataFrame(prices)
-    out.index.name = "Day"
-    return out
+    df = pd.DataFrame(prices)
+    df.index.name = "Day"
+    return df
 
 
 def run_streamlit():
@@ -234,8 +197,6 @@ def run_streamlit():
 
     _safe_apply_global_styles()
     _inject_module_css()
-
-    # This call is what makes the button appear
     _render_back_links()
 
     st.title("⚠️ Risk & Scenario Simulation")
@@ -246,34 +207,23 @@ def run_streamlit():
 
     df = load_data()
 
-    delay_col = _first_existing_col(
-        df,
-        ["Departure Delay in Minutes", "DepartureDelay", "DepDelay", "departure_delay", "dep_delay"],
-    )
-    dist_col = _first_existing_col(
-        df,
-        ["Flight Distance", "FlightDistance", "Distance", "flight_distance"],
-    )
+    delay_col = _first_existing_col(df, ["Departure Delay in Minutes", "DepDelay"])
+    dist_col = _first_existing_col(df, ["Flight Distance", "Distance"])
 
     if delay_col is None:
-        st.error("Dataset does not contain a departure delay column (expected 'Departure Delay in Minutes' or similar).")
+        st.error("No departure delay column found.")
         return
 
-    delay_series = pd.to_numeric(df[delay_col], errors="coerce").dropna()
-    mean_delay = float(delay_series.mean())
-    std_delay = float(delay_series.std())
-    if not (std_delay > 0):
-        std_delay = 10.0
+    delays_raw = pd.to_numeric(df[delay_col], errors="coerce").dropna()
+    mean_delay = delays_raw.mean()
+    std_delay = delays_raw.std() if delays_raw.std() > 0 else 10
 
     st.markdown('<div class="section-title">🎛️ Scenario Controls</div>', unsafe_allow_html=True)
 
     c1, c2, c3 = st.columns(3)
-    with c1:
-        sims = st.slider("Monte Carlo simulations", 2000, 50000, 12000, step=2000)
-    with c2:
-        threshold = st.slider("Delay risk threshold (min)", 15, 180, 60, step=5)
-    with c3:
-        crisis_mult = st.slider("Crisis multiplier", 1.0, 2.5, 1.15, step=0.05)
+    sims = c1.slider("Monte Carlo simulations", 2000, 50000, 12000, step=2000)
+    threshold = c2.slider("Delay risk threshold (min)", 15, 180, 60, step=5)
+    crisis_mult = c3.slider("Crisis multiplier", 1.0, 2.5, 1.15, step=0.05)
 
     delays = simulate_delay_monte_carlo(mean_delay, std_delay, sims, crisis_mult)
     kpis = delay_risk_kpis(delays, threshold)
@@ -281,84 +231,36 @@ def run_streamlit():
     st.markdown('<div class="section-title">⭐ Key Risk Indicators</div>', unsafe_allow_html=True)
 
     k1, k2, k3, k4 = st.columns(4)
-    with k1:
-        _kpi_card(st, "Expected Delay (min)", f"{kpis['expected']:.1f}", badge=f"Baseline μ={mean_delay:.1f}")
-    with k2:
-        _kpi_card(st, f"P(Delay > {threshold}m)", f"{kpis['p_over']:.1f}%", badge="Operational risk")
-    with k3:
-        _kpi_card(st, "95th Percentile", f"{kpis['p95']:.1f}", badge="Resilience KPI")
-    with k4:
-        _kpi_card(st, "Worst Case", f"{kpis['worst']:.1f}", badge="Tail risk")
+    _kpi_card(k1, "Expected Delay (min)", f"{kpis['expected']:.1f}")
+    _kpi_card(k2, f"P(Delay > {threshold}m)", f"{kpis['p_over']:.1f}%")
+    _kpi_card(k3, "95th Percentile", f"{kpis['p95']:.1f}")
+    _kpi_card(k4, "Worst Case", f"{kpis['worst']:.1f}")
 
     st.markdown('<div class="section-title">📊 Simulated Delay Distribution</div>', unsafe_allow_html=True)
-    st.markdown('<div class="hint">Binned histogram of simulated delays.</div>', unsafe_allow_html=True)
+    st.bar_chart(pd.Series(delays).value_counts().sort_index())
 
-    upper = int(max(180, np.percentile(delays, 99) + 30))
-    bins = np.arange(0, upper + 5, 5)
-    hist, edges = np.histogram(delays, bins=bins)
-    hist_df = pd.DataFrame({"Delay (min)": edges[:-1], "Count": hist}).set_index("Delay (min)")
-    st.bar_chart(hist_df)
-
-    st.markdown('<div class="section-title">🛢️ Fuel Price Volatility (Simulation)</div>', unsafe_allow_html=True)
-    st.markdown('<div class="hint">Synthetic simulation for academic demonstration.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🛢️ Fuel Price Volatility</div>', unsafe_allow_html=True)
 
     f1, f2, f3 = st.columns(3)
-    with f1:
-        start_price = st.number_input("Starting fuel price (USD)", min_value=20.0, max_value=250.0, value=85.0, step=1.0)
-    with f2:
-        days = st.slider("Days to simulate", 30, 365, 180, step=15)
-    with f3:
-        vol = st.slider("Annual volatility", 0.05, 0.80, 0.35, step=0.05)
+    start_price = f1.number_input("Starting fuel price (USD)", 20.0, 250.0, 85.0)
+    days = f2.slider("Days to simulate", 30, 365, 180, step=15)
+    vol = f3.slider("Annual volatility", 0.05, 0.8, 0.35, step=0.05)
 
-    fuel_paths = simulate_fuel_price_paths(start_price, days, annual_vol=vol, annual_drift=0.03, n_paths=18)
+    fuel_paths = simulate_fuel_price_paths(start_price, days, vol, 0.03, 18)
     st.line_chart(fuel_paths)
 
-    st.markdown('<div class="section-title">🧭 Context: Distance vs Delay (Dataset Trend)</div>', unsafe_allow_html=True)
-
-    if dist_col is None:
-        st.info("No distance column found. Skipping distance context chart.")
-        return
-
-    dist = pd.to_numeric(df[dist_col], errors="coerce")
-    tmp = pd.DataFrame({"distance": dist, "delay": pd.to_numeric(df[delay_col], errors="coerce")}).dropna()
-
-    tmp["distance_bucket"] = pd.cut(tmp["distance"], bins=8)
-    trend = tmp.groupby("distance_bucket", observed=True)["delay"].mean().reset_index()
-    trend["distance_bucket"] = trend["distance_bucket"].astype(str)
-    trend = trend.set_index("distance_bucket")
-    st.line_chart(trend)
+    if dist_col:
+        st.markdown('<div class="section-title">🧭 Distance vs Delay</div>', unsafe_allow_html=True)
+        tmp = pd.DataFrame({
+            "distance": pd.to_numeric(df[dist_col], errors="coerce"),
+            "delay": pd.to_numeric(df[delay_col], errors="coerce"),
+        }).dropna()
+        tmp["bucket"] = pd.cut(tmp["distance"], bins=8)
+        st.line_chart(tmp.groupby("bucket")["delay"].mean())
 
 
 def run_cli():
-    from services.data_service import load_data
-
-    print("\n--- Risk & Scenario Simulation (CLI) ---")
-
-    df = load_data()
-
-    delay_col = _first_existing_col(df, ["Departure Delay in Minutes", "DepartureDelay", "DepDelay"])
-    if delay_col is None:
-        print("ERROR: Could not find a departure delay column.")
-        return
-
-    delay_series = pd.to_numeric(df[delay_col], errors="coerce").dropna()
-    mean_delay = float(delay_series.mean())
-    std_delay = float(delay_series.std()) if float(delay_series.std()) > 0 else 10.0
-
-    sims = 12000
-    threshold = 60
-    crisis_mult = 1.15
-
-    delays = simulate_delay_monte_carlo(mean_delay, std_delay, sims, crisis_mult)
-    kpis = delay_risk_kpis(delays, threshold)
-
-    print(f"Baseline mean delay: {mean_delay:.2f} min | std: {std_delay:.2f} min")
-    print(f"Simulations: {sims} | Crisis multiplier: {crisis_mult:.2f}")
-    print(f"Expected delay: {kpis['expected']:.2f} min")
-    print(f"P(Delay > {threshold} min): {kpis['p_over']:.2f}%")
-    print(f"95th percentile: {kpis['p95']:.2f} min")
-    print(f"99th percentile: {kpis['p99']:.2f} min")
-    print(f"Worst case: {kpis['worst']:.2f} min")
+    print("CLI mode not implemented for this module.")
 
 
 def main(mode="streamlit"):
