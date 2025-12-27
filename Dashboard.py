@@ -18,7 +18,6 @@ def run_streamlit_ui():
     import os
     import base64
     import streamlit as st
-
     from services.ui_service import apply_global_styles
 
     st.set_page_config(
@@ -46,23 +45,33 @@ def run_streamlit_ui():
             f"""
             <div style="
                 position: relative;
-                height: 320px;
+                height: 340px;
                 border-radius: 22px;
                 overflow: hidden;
                 margin-bottom: 2.2rem;
                 box-shadow: 0 12px 35px rgba(0,0,0,0.35);
             ">
-                <video autoplay muted loop playsinline
-                    style="
+
+                <div style="position:absolute; inset:0;">
+                    <video autoplay muted loop playsinline
+                        style="
+                            width:100%;
+                            height:100%;
+                            object-fit:cover;
+                        ">
+                        <source src="data:video/mp4;base64,{hero_video_b64}" type="video/mp4">
+                    </video>
+
+                    <div style="
                         position:absolute;
-                        top:0; left:0;
-                        width:100%;
-                        height:100%;
-                        object-fit:cover;
-                        filter: brightness(0.55);
-                    ">
-                    <source src="data:video/mp4;base64,{hero_video_b64}" type="video/mp4">
-                </video>
+                        inset:0;
+                        background: linear-gradient(
+                            135deg,
+                            rgba(0,26,77,0.65),
+                            rgba(0,58,128,0.55)
+                        );
+                    "></div>
+                </div>
 
                 <div style="
                     position: relative;
@@ -71,15 +80,21 @@ def run_streamlit_ui():
                     color: white;
                 ">
                     <h1 style="
-                        font-size: 3rem;
+                        font-size: 3.1rem;
                         font-weight: 900;
-                        margin-bottom: 0.5rem;
+                        margin-bottom: 0.6rem;
                         letter-spacing: -0.5px;
+                        color: white;
                     ">
                         Singapore Airlines Analytics System
                     </h1>
 
-                    <p style="font-size: 1.15rem; color: #E5E7EB; margin-top: 0;">
+                    <p style="
+                        font-size: 1.15rem;
+                        color: #F3F4F6;
+                        margin-top: 0;
+                        max-width: 900px;
+                    ">
                         Enterprise Cloud-Based Analytics Dashboard
                     </p>
                 </div>
@@ -107,7 +122,7 @@ def run_streamlit_ui():
                     Singapore Airlines Analytics System
                 </h1>
                 <p style="
-                    color: #E5E7EB;
+                    color: #F3F4F6;
                     font-size: 1.2rem;
                     margin-top: 0.5rem;
                 ">
@@ -125,7 +140,7 @@ def run_streamlit_ui():
 
     col1, col2 = st.columns(2)
 
-    def module_card(title, desc, link):
+    def module_card(title: str, desc: str, link: str):
         st.markdown(
             f"""
             <a href="/{link}" target="_self" style="text-decoration:none;">
@@ -144,7 +159,6 @@ def run_streamlit_ui():
             "Flight distance, delays, crew performance, and estimated fuel usage.",
             "pages/Module1_Flight_Performance.py"
         )
-
         module_card(
             "⚠️ Risk & Scenario Simulation",
             "Simulations and operational risk forecasting.",
@@ -157,7 +171,6 @@ def run_streamlit_ui():
             "Passenger satisfaction, service quality, and inflight experience.",
             "pages/Module2_Customer_Experience.py"
         )
-
         module_card(
             "☁️ Cloud Analytics",
             "Cloud-based data loading and scalability demonstrations.",
@@ -173,10 +186,6 @@ def run_streamlit_ui():
 def run_cli():
     from pages.Module1_Flight_Performance import run_flight_performance_cli
     from pages.Module2_Customer_Experience import run_customer_experience_cli
-
-    # If your team has implemented CLI for Module 3 & 4, uncomment these:
-    # from pages.Module3_Risk_Simulation import run_cli as run_risk_simulation_cli
-    # from pages.Module4_Cloud_Analytics import run_cli as run_cloud_analytics_cli
 
     print("===========================================")
     print("   Singapore Airlines Analytics System CLI")
@@ -201,15 +210,9 @@ def run_cli():
             print("\n[CLI] Risk Simulation is best viewed in Streamlit UI.")
             input("\nPress ENTER to return to menu...")
 
-            # If you add CLI support:
-            # run_risk_simulation_cli()
-
         elif choice == "4":
             print("\n[CLI] Cloud Analytics is best viewed in Streamlit UI.")
             input("\nPress ENTER to return to menu...")
-
-            # If you add CLI support:
-            # run_cloud_analytics_cli()
 
         elif choice == "5":
             print("Goodbye.")
@@ -224,11 +227,7 @@ def run_cli():
 # ENTRY POINT
 # =============================================================
 if __name__ == "__main__":
-    # CLI MODE
-    # Usage: python3 Dashboard.py cli
     if len(sys.argv) > 1 and sys.argv[1].lower() == "cli":
         run_cli()
-    # STREAMLIT UI MODE
-    # Usage: streamlit run Dashboard.py
     else:
         run_streamlit_ui()
