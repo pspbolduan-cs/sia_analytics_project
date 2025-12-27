@@ -18,6 +18,7 @@ def run_streamlit_ui():
     import streamlit as st
     from pathlib import Path
     import base64
+    import textwrap
 
     # Optional global styles (won't crash if missing)
     try:
@@ -32,6 +33,12 @@ def run_streamlit_ui():
             apply_global_styles()
         except Exception:
             pass
+
+    # ---------------------------------------------------
+    # Helper: always dedent HTML to avoid Streamlit code-block rendering
+    # ---------------------------------------------------
+    def _render_html(html: str) -> None:
+        st.markdown(textwrap.dedent(html).strip(), unsafe_allow_html=True)
 
     # ---------------------------------------------------
     # ABSOLUTE ASSET PATHS
@@ -81,7 +88,7 @@ def run_streamlit_ui():
     # ---------------------------------------------------
     # CSS
     # ---------------------------------------------------
-    st.markdown(
+    _render_html(
         """
         <style>
           .block-container { padding-top: 1.2rem !important; }
@@ -168,7 +175,7 @@ def run_streamlit_ui():
             margin-bottom: 1.1rem;
           }
 
-          /* Module grid */
+          /* Grid */
           .moduleGrid{
             display:grid;
             grid-template-columns: 1fr 1fr;
@@ -228,7 +235,7 @@ def run_streamlit_ui():
             margin-bottom: 12px;
           }
 
-          /* CTA ROW FIX: keep button + hint on ONE line */
+          /* CTA */
           .ctaRow{
             display:flex;
             align-items:center;
@@ -283,8 +290,7 @@ def run_streamlit_ui():
             line-height: 1.55;
           }
         </style>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
     # ---------------------------------------------------
@@ -293,20 +299,20 @@ def run_streamlit_ui():
     video_block = ""
     if hero_video_uri:
         video_block = f"""
-        <video class="heroVideo" autoplay muted loop playsinline>
-          <source src="{hero_video_uri}" type="video/mp4" />
-        </video>
-        """
+<video class="heroVideo" autoplay muted loop playsinline>
+  <source src="{hero_video_uri}" type="video/mp4" />
+</video>
+"""
 
     logo_block = ""
     if logo_uri:
         logo_block = f"""
-        <div class="logoChip">
-          <img src="{logo_uri}" alt="Singapore Airlines logo">
-        </div>
-        """
+<div class="logoChip">
+  <img src="{logo_uri}" alt="Singapore Airlines logo">
+</div>
+"""
 
-    st.markdown(
+    _render_html(
         f"""
         <div class="heroWrap">
           {video_block}
@@ -348,148 +354,144 @@ def run_streamlit_ui():
             </div>
           </div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
+
+    # ---------------------------------------------------
+    # Cards helper
+    # ---------------------------------------------------
+    def module_card(title, emoji, desc, hint, page_path, img_uri, cta_label="Open page"):
+        img_html = f"<img src='{img_uri}' alt='{title}'>" if img_uri else ""
+        return f"""
+<div class="moduleCard">
+  <div class="thumbWrap">
+    {img_html}
+    <div class="thumbShade"></div>
+  </div>
+  <div class="moduleInner">
+    <div class="moduleTitleRow"><span style="font-size:1.35rem;">{emoji}</span><span>{title}</span></div>
+    <div class="moduleDesc">{desc}</div>
+    <div class="ctaRow">
+      <a class="ctaBtn" href="/{page_path}" target="_self">➡️ {cta_label} →</a>
+      <span class="ctaHint">{hint}</span>
+    </div>
+  </div>
+</div>
+"""
 
     # ---------------------------------------------------
     # WHAT THIS DASHBOARD DOES
     # ---------------------------------------------------
-    st.markdown('<div class="sectionTitle">📌 What this dashboard does</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="sectionSub">A single entry point that explains the system and links to analytics + governance pages built on shared services.</div>',
-        unsafe_allow_html=True,
+    _render_html('<div class="sectionTitle">📌 What this dashboard does</div>')
+    _render_html('<div class="sectionSub">A single entry point that explains the system and links to analytics + governance pages built on shared services.</div>')
+
+    _render_html(
+        """
+<div class="infoCard">
+  <h3>How to use</h3>
+  <ul>
+    <li>Start here and open a module using <b>Open module</b>.</li>
+    <li>Each module offers interactive controls (filters/sliders) + charts.</li>
+    <li>Use <b>System Overview</b> to understand architecture and scalability.</li>
+    <li>Use <b>Security & Ethics</b> to review privacy, risk, and governance assumptions.</li>
+  </ul>
+</div>
+        """
     )
 
-    st.markdown(
+    _render_html(
         """
-        <div class="infoCard">
-          <h3>How to use</h3>
-          <ul>
-            <li>Start here and open a module using <b>Open module</b>.</li>
-            <li>Each module offers interactive controls (filters/sliders) + charts.</li>
-            <li>Use <b>System Overview</b> to understand architecture and scalability.</li>
-            <li>Use <b>Security & Ethics</b> to review privacy, risk, and governance assumptions.</li>
-          </ul>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
+<div class="infoCard">
+  <h3>Data & concepts</h3>
+  <ul>
+    <li><b>Dataset:</b> synthetic <span class="kbd">assets/train.csv</span> (academic use).</li>
+    <li><b>Assumptions:</b> controlled simulation is used where metrics are missing.</li>
+    <li><b>Architecture:</b> modular pages + shared services (data / UI helpers).</li>
+    <li><b>UI + CLI:</b> web UI for visuals + menu-driven CLI for quick summaries.</li>
+  </ul>
+</div>
         """
-        <div class="infoCard">
-          <h3>Data & concepts</h3>
-          <ul>
-            <li><b>Dataset:</b> synthetic <span class="kbd">assets/train.csv</span> (academic use).</li>
-            <li><b>Assumptions:</b> controlled simulation is used where metrics are missing.</li>
-            <li><b>Architecture:</b> modular pages + shared services (data / UI helpers).</li>
-            <li><b>UI + CLI:</b> web UI for visuals + menu-driven CLI for quick summaries.</li>
-          </ul>
-        </div>
-        """,
-        unsafe_allow_html=True,
     )
 
     # ---------------------------------------------------
-    # NEW: SYSTEM PAGES
+    # SYSTEM PAGES
     # ---------------------------------------------------
-    st.markdown('<div style="height:22px;"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="sectionTitle">🧩 System Pages</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="sectionSub">These pages strengthen enterprise design + governance criteria (architecture, security, risk & ethics).</div>',
-        unsafe_allow_html=True,
-    )
-
-    def module_card(title, emoji, desc, hint, page_path, img_uri):
-        return f"""
-        <div class="moduleCard">
-          <div class="thumbWrap">
-            {"<img src='"+img_uri+"' alt='"+title+"'>" if img_uri else ""}
-            <div class="thumbShade"></div>
-          </div>
-
-          <div class="moduleInner">
-            <div class="moduleTitleRow"><span style="font-size:1.35rem;">{emoji}</span><span>{title}</span></div>
-            <div class="moduleDesc">{desc}</div>
-
-            <div class="ctaRow">
-              <a class="ctaBtn" href="/{page_path}" target="_self">➡️ Open page →</a>
-              <span class="ctaHint">{hint}</span>
-            </div>
-          </div>
-        </div>
-        """
+    _render_html('<div style="height:22px;"></div>')
+    _render_html('<div class="sectionTitle">🧩 System Pages</div>')
+    _render_html('<div class="sectionSub">These pages strengthen enterprise design + governance criteria (architecture, security, risk & ethics).</div>')
 
     system_grid = f"""
-    <div class="moduleGrid">
-      {module_card(
-        "System Overview / Architecture",
-        "🏗️",
-        "View the system architecture, shared services, page structure, and cloud scalability mapping.",
-        "Enterprise design + scalability",
-        "pages/System_Overview_Architecture.py",
-        arch_uri
-      )}
-      {module_card(
-        "Security, Risk & Ethics",
-        "🛡️",
-        "Review privacy protections, governance assumptions, security controls, and ethical analytics considerations.",
-        "LO6: protection + governance",
-        "pages/Security_Risk_Ethics.py",
-        sec_uri
-      )}
-    </div>
-    """
-    st.markdown(system_grid, unsafe_allow_html=True)
+<div class="moduleGrid">
+  {module_card(
+      "System Overview / Architecture",
+      "🏗️",
+      "View the system architecture, shared services, page structure, and cloud scalability mapping.",
+      "Enterprise design + scalability",
+      "pages/System_Overview_Architecture.py",
+      arch_uri,
+      cta_label="Open page"
+  )}
+  {module_card(
+      "Security, Risk & Ethics",
+      "🛡️",
+      "Review privacy protections, governance assumptions, security controls, and ethical analytics considerations.",
+      "LO6: protection + governance",
+      "pages/Security_Risk_Ethics.py",
+      sec_uri,
+      cta_label="Open page"
+  )}
+</div>
+"""
+    _render_html(system_grid)
 
     # ---------------------------------------------------
     # MODULES SECTION
     # ---------------------------------------------------
-    st.markdown('<div style="height:22px;"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="sectionTitle">📊 Analytics Modules</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="sectionSub">Click <b>Open module →</b> to navigate. Each module uses the same theme and dataset service.</div>',
-        unsafe_allow_html=True,
-    )
+    _render_html('<div style="height:22px;"></div>')
+    _render_html('<div class="sectionTitle">📊 Analytics Modules</div>')
+    _render_html('<div class="sectionSub">Click <b>Open module →</b> to navigate. Each module uses the same theme and dataset service.</div>')
 
-    grid_html = f"""
-    <div class="moduleGrid">
-      {module_card(
-        "Flight Performance Analytics",
-        "✈️",
-        "Explore distance distribution, delay trends, crew/service indicators, and estimated fuel usage.",
-        "Interactive KPIs & charts",
-        "pages/Module1_Flight_Performance.py",
-        m1_uri
-      )}
-      {module_card(
-        "Customer Experience Analytics",
-        "😊",
-        "Analyse satisfaction outcomes, service ratings, and behavioural indicators affecting passenger experience.",
-        "Service quality insights",
-        "pages/Module2_Customer_Experience.py",
-        m2_uri
-      )}
-      {module_card(
-        "Risk & Scenario Simulation",
-        "⚠️",
-        "Model operational uncertainty using Monte Carlo simulation and scenario-based disruption controls.",
-        "Probabilities, percentiles, worst-case outcomes",
-        "pages/Module3_Risk_Simulation.py",
-        m3_uri
-      )}
-      {module_card(
-        "Cloud Analytics",
-        "☁️",
-        "Demonstrate scalable processing concepts and cloud-oriented analytics patterns.",
-        "Batch vs streaming + scaling concepts",
-        "pages/Module4_Cloud_Analytics.py",
-        m4_uri
-      )}
-    </div>
-    """
-    st.markdown(grid_html, unsafe_allow_html=True)
+    modules_grid = f"""
+<div class="moduleGrid">
+  {module_card(
+      "Flight Performance Analytics",
+      "✈️",
+      "Explore distance distribution, delay trends, crew/service indicators, and estimated fuel usage.",
+      "Interactive KPIs & charts",
+      "pages/Module1_Flight_Performance.py",
+      m1_uri,
+      cta_label="Open module"
+  )}
+  {module_card(
+      "Customer Experience Analytics",
+      "😊",
+      "Analyse satisfaction outcomes, service ratings, and behavioural indicators affecting passenger experience.",
+      "Service quality insights",
+      "pages/Module2_Customer_Experience.py",
+      m2_uri,
+      cta_label="Open module"
+  )}
+  {module_card(
+      "Risk & Scenario Simulation",
+      "⚠️",
+      "Model operational uncertainty using Monte Carlo simulation and scenario-based disruption controls.",
+      "Probabilities, percentiles, worst-case outcomes",
+      "pages/Module3_Risk_Simulation.py",
+      m3_uri,
+      cta_label="Open module"
+  )}
+  {module_card(
+      "Cloud Analytics",
+      "☁️",
+      "Demonstrate scalable processing concepts and cloud-oriented analytics patterns.",
+      "Batch vs streaming + scaling concepts",
+      "pages/Module4_Cloud_Analytics.py",
+      m4_uri,
+      cta_label="Open module"
+  )}
+</div>
+"""
+    _render_html(modules_grid)
 
     st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
     st.info("Tip: If a page doesn't open, confirm the filename is inside /pages and matches the link exactly.")
