@@ -43,8 +43,6 @@ def _inject_module_css() -> None:
     PRIMARY_NAVY = "#002663"
     BACKGROUND_CREAM = "#F5F3EE"
     TEXT_GREY = "#555555"
-    CARD_BG = "#FFFFFF"
-    CARD_BORDER = "#E5E7EB"
 
     st.markdown(
         f"""
@@ -95,11 +93,6 @@ def _inject_module_css() -> None:
         .sia-back-float a:hover {{
             text-decoration: underline;
         }}
-
-        /* Make matplotlib plots breathe a bit */
-        .stPlotlyChart, .stPyplot {{
-            background: transparent !important;
-        }}
         </style>
         """,
         unsafe_allow_html=True,
@@ -134,40 +127,36 @@ def _first_existing_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
 
 def _kpi_cards(st, items: list[tuple[str, str, str]]) -> None:
     """
-    Lightweight KPI cards (works even if ui_service.render_kpi_cards is missing).
+    Lightweight KPI cards.
     items: [(title, value, badge), ...]
     """
     PRIMARY_NAVY = "#002663"
-    TEXT_GREY = "#555555"
 
     st.markdown(
-        """
+        f"""
         <style>
-        .kpiGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-        @media (max-width: 1200px){ .kpiGrid { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 700px){ .kpiGrid { grid-template-columns: 1fr; } }
-        .kpiCard{
+        .kpiGrid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }}
+        @media (max-width: 1200px){{ .kpiGrid {{ grid-template-columns: repeat(2, 1fr); }} }}
+        @media (max-width: 700px){{ .kpiGrid {{ grid-template-columns: 1fr; }} }}
+        .kpiCard{{
             background: white;
             border: 1px solid rgba(0,0,0,0.06);
             border-radius: 16px;
             padding: 14px 16px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-        }
-        .kpiTitle{ color: rgba(0,0,0,0.55); font-size: 0.90rem; font-weight: 700; }
-        .kpiValue{ color: """
-        + PRIMARY_NAVY
-        + """;
+        }}
+        .kpiTitle{{ color: rgba(0,0,0,0.55); font-size: 0.90rem; font-weight: 700; }}
+        .kpiValue{{
+            color: {PRIMARY_NAVY};
             font-size: 2.0rem; font-weight: 900; line-height: 1.1; margin-top: 6px;
-        }
-        .kpiBadge{
+        }}
+        .kpiBadge{{
             display:inline-block; margin-top: 8px;
             padding: 4px 10px; border-radius: 999px;
             background: rgba(255,237,77,0.35);
-            color: """
-        + PRIMARY_NAVY
-        + """;
+            color: {PRIMARY_NAVY};
             font-weight: 800; font-size: 0.78rem;
-        }
+        }}
         </style>
         """,
         unsafe_allow_html=True,
@@ -211,10 +200,7 @@ def prepare_flight_data() -> pd.DataFrame | None:
     rng = np.random.default_rng(42)
     distance = pd.to_numeric(df[dist_col], errors="coerce")
 
-    df["Estimated Fuel Consumption (kg)"] = (
-        distance * BASE_FUEL_RATE * rng.uniform(0.9, 1.1, size=len(df))
-    )
-
+    df["Estimated Fuel Consumption (kg)"] = distance * BASE_FUEL_RATE * rng.uniform(0.9, 1.1, size=len(df))
     return df
 
 
@@ -234,14 +220,12 @@ def run_flight_performance_ui():
     st.markdown(
         """
         <div class="sia-subtext">
-        This module analyses operational flight performance: distance patterns, delay trends,
+        Operational flight performance analytics: distance patterns, delay trends,
         crew service indicators, and <b>estimated fuel consumption</b> (simulated for academic use).
         </div>
         """,
         unsafe_allow_html=True,
     )
-
-    st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
 
     # -------------------------------
     # LOAD & PREPARE DATA
@@ -250,6 +234,9 @@ def run_flight_performance_ui():
     if df is None:
         st.error("❌ Unable to load dataset or required columns (e.g., Flight Distance) are missing.")
         st.stop()
+
+    # ✅ TOTAL FLIGHTS (FIX): always based on the FULL dataset, not filtered / not dropna
+    total_flights_all = int(len(df))
 
     # Robust columns
     dist_col = _first_existing_col(df, ["Flight Distance", "FlightDistance", "Distance", "flight_distance"])
@@ -264,24 +251,35 @@ def run_flight_performance_ui():
     # FILTERS
     # -------------------------------
     st.markdown('<div class="section-title">🎛️ Filters</div>', unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
 
-    # Distance filter
     dist_series = pd.to_numeric(df[dist_col], errors="coerce").dropna()
-    dmin = float(dist_series.min()) if not dist_series.empty else 0.0
-    dmax = float(dist_series.max()) if not dist_series.empty else 1.0
+    if dist_series.empty:
+        st.error("Distance column exists but contains no numeric values.")
+        st.stop()
 
+    dmin = float(dist_series.min())
+    dmax = float(dist_series.max())
+
+    c1, c2, c3 = st.columns(3)
     with c1:
-        dist_range = st.slider("Flight distance range (km)", float(dmin), float(dmax), (float(dmin), float(dmax)))
+        dist_range = st.slider("Flight distance range (km)", dmin, dmax, (dmin, dmax))
     with c2:
-        sample_n = st.slider("Sample size for scatter plots", 1000, min(50000, len(df)), min(8000, len(df)), step=1000)
+        sample_n = st.slider(
+            "Sample size for scatter plots",
+            1000,
+            min(50000, total_flights_all),
+            min(8000, total_flights_all),
+            step=1000,
+        )
     with c3:
         bins = st.slider("Histogram bins", 10, 60, 30, step=5)
 
-    # Filter df by distance range
+    # Filter df by distance range (DO NOT affect total_flights_all)
     df_f = df.copy()
     df_f["_dist_num"] = pd.to_numeric(df_f[dist_col], errors="coerce")
     df_f = df_f[df_f["_dist_num"].between(dist_range[0], dist_range[1], inclusive="both")].dropna(subset=["_dist_num"])
+
+    total_flights_filtered = int(len(df_f))
 
     if df_f.empty:
         st.warning("No records match the selected filters.")
@@ -290,7 +288,6 @@ def run_flight_performance_ui():
     # -------------------------------
     # KPI SECTION
     # -------------------------------
-    total_flights = int(len(df_f))
     avg_distance = float(df_f["_dist_num"].mean())
 
     avg_dep_delay = None
@@ -306,11 +303,12 @@ def run_flight_performance_ui():
     fuel_s = pd.to_numeric(df_f["Estimated Fuel Consumption (kg)"], errors="coerce")
     avg_fuel = float(fuel_s.mean()) if fuel_s.notna().any() else 0.0
 
+    # ✅ KPI FIX: show BOTH total flights and filtered flights so it never looks “wrong”
     kpis = [
-        ("Total Flights", f"{total_flights:,}", "Filtered subset"),
-        ("Avg Distance (km)", f"{avg_distance:.1f}", "Distance KPI"),
+        ("Total Flights", f"{total_flights_all:,}", "Entire dataset"),
+        ("Flights in Filter", f"{total_flights_filtered:,}", "After distance filter"),
+        ("Avg Distance (km)", f"{avg_distance:.1f}", "Filtered subset"),
         ("Avg Fuel (kg)", f"{avg_fuel:.1f}", "Simulated"),
-        ("Avg Arrival Delay (min)", f"{avg_arr_delay:.1f}" if avg_arr_delay is not None else "N/A", "Operational"),
     ]
     _kpi_cards(st, kpis)
 
@@ -333,7 +331,7 @@ def run_flight_performance_ui():
     # -------------------------------
     # DELAY ANALYSIS
     # -------------------------------
-    st.markdown('<div class="section-title">⏱ Delay vs Flight Distance</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">⏱ Arrival Delay vs Flight Distance</div>', unsafe_allow_html=True)
     st.markdown('<div class="hint">Scatter plot (sampled for performance).</div>', unsafe_allow_html=True)
 
     sample_df = df_f.sample(n=min(sample_n, len(df_f)), random_state=42)
@@ -353,7 +351,7 @@ def run_flight_performance_ui():
     # -------------------------------
     # FUEL CONSUMPTION ANALYSIS
     # -------------------------------
-    st.markdown('<div class="section-title">⛽ Estimated Fuel vs Flight Distance</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">⛽ Estimated Fuel Consumption vs Flight Distance</div>', unsafe_allow_html=True)
     st.markdown('<div class="hint">Fuel is simulated from distance (academic estimation).</div>', unsafe_allow_html=True)
 
     fuel = pd.to_numeric(sample_df["Estimated Fuel Consumption (kg)"], errors="coerce")
@@ -389,10 +387,7 @@ def run_flight_performance_ui():
 # CLI VERSION
 # ============================================================
 def run_flight_performance_cli():
-    """
-    Command-line interface for Flight Performance Analytics.
-    Provides summary statistics without visualizations.
-    """
+    """Command-line interface for Flight Performance Analytics (summary only)."""
 
     print("\n=======================================")
     print("  FLIGHT PERFORMANCE ANALYTICS (CLI)   ")
@@ -404,6 +399,8 @@ def run_flight_performance_cli():
         input("Press ENTER to return...")
         return
 
+    total_flights_all = int(len(df))
+
     dist_col = _first_existing_col(df, ["Flight Distance", "FlightDistance", "Distance", "flight_distance"])
     dep_delay_col = _first_existing_col(df, ["Departure Delay in Minutes", "DepartureDelay", "DepDelay"])
     arr_delay_col = _first_existing_col(df, ["Arrival Delay in Minutes", "ArrivalDelay", "ArrDelay"])
@@ -411,7 +408,7 @@ def run_flight_performance_cli():
     dist = pd.to_numeric(df[dist_col], errors="coerce")
     fuel = pd.to_numeric(df["Estimated Fuel Consumption (kg)"], errors="coerce")
 
-    print(f"✈️ Total Flights        : {len(df):,}")
+    print(f"✈️ Total Flights        : {total_flights_all:,}")
     print(f"📏 Avg Distance (km)    : {float(dist.mean()):.1f}")
 
     if dep_delay_col:
@@ -430,15 +427,11 @@ def run_flight_performance_cli():
 
     crew_cols = ["On-board service", "Inflight service", "Checkin service"]
     available = [c for c in crew_cols if c in df.columns]
-
     if available:
         print("\n👨‍✈️ Crew Service Ratings:")
         for col in available:
             s = pd.to_numeric(df[col], errors="coerce")
-            if s.notna().any():
-                print(f" - {col}: {float(s.mean()):.2f}")
-            else:
-                print(f" - {col}: N/A")
+            print(f" - {col}: {float(s.mean()):.2f}" if s.notna().any() else f" - {col}: N/A")
 
     print("\n✔ Flight Performance CLI completed.")
     input("\nPress ENTER to return to main menu...")
