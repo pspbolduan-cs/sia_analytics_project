@@ -4,14 +4,14 @@
 # Course: CN6001 Enterprise Application & Cloud Computing
 #
 # Description:
-# This module models operational uncertainty in airline operations
-# using Monte Carlo simulation and scenario-based risk modelling.
-# Because real airline operational risk data is confidential, the
-# system uses a synthetic dataset (train.csv) for academic purposes.
+# This module models operational uncertainty using simulation and
+# scenario-based risk modelling. Because real airline operational
+# data is confidential, a synthetic dataset (train.csv) is used for
+# academic demonstration purposes.
 #
 # Key Concepts:
-# - Monte Carlo simulation for delay risk
-# - Scenario multiplier for crisis impact
+# - Monte Carlo simulation for delay risk modelling
+# - Scenario multiplier for disruption impact
 # - Synthetic fuel price volatility simulation (GBM-style)
 # - Streamlit UI + CLI execution
 # ============================================================
@@ -21,7 +21,7 @@ import pandas as pd
 
 
 def _safe_apply_global_styles():
-    """Apply shared SIA UI theme if available (safe for CLI too)."""
+    """Apply shared UI theme if available (safe for CLI too)."""
     try:
         from services.ui_service import apply_global_styles
         apply_global_styles()
@@ -97,6 +97,19 @@ def _inject_module_css():
             color: {TEXT_GREY};
             font-size: 0.92rem;
         }}
+
+        .back-row {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1rem;
+            margin-bottom: 1.0rem;
+        }}
+        .back-row a {{
+            text-decoration: none;
+            font-weight: 600;
+            color: {PRIMARY_NAVY};
+        }}
         </style>
         """,
         unsafe_allow_html=True,
@@ -104,7 +117,7 @@ def _inject_module_css():
 
 
 def _kpi_card(st, title: str, value: str, badge: str = ""):
-    """Render a consistent KPI card (matches the project theme)."""
+    """Render a consistent KPI card."""
     badge_html = f'<div class="kpi-badge">{badge}</div>' if badge else ""
     st.markdown(
         f"""
@@ -119,7 +132,7 @@ def _kpi_card(st, title: str, value: str, badge: str = ""):
 
 
 def _first_existing_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
-    """Return the first column name that exists in df from candidates (case-safe)."""
+    """Return the first matching column name in df from candidates (case-safe)."""
     cols_lower = {c.lower(): c for c in df.columns}
     for cand in candidates:
         if cand in df.columns:
@@ -134,14 +147,9 @@ def _first_existing_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
 # Simulation Models
 # -----------------------------
 def simulate_delay_monte_carlo(mean_delay: float, std_delay: float, n: int, crisis_multiplier: float) -> np.ndarray:
-    """
-    Monte Carlo delay simulation:
-    - Normal distribution based on dataset mean/std
-    - Clipped to 0 (no negative delays)
-    - Scaled by crisis_multiplier to model disruptions
-    """
+    """Monte Carlo delay simulation using dataset mean/std and a disruption multiplier."""
     delays = np.random.normal(loc=mean_delay, scale=std_delay, size=n)
-    delays = np.clip(delays, 0, None)  # real-world constraint: delays cannot be negative
+    delays = np.clip(delays, 0, None)
     return delays * crisis_multiplier
 
 
@@ -163,10 +171,7 @@ def simulate_fuel_price_paths(
     annual_drift: float,
     n_paths: int,
 ) -> pd.DataFrame:
-    """
-    Synthetic fuel price simulation (GBM-style) for academic demonstration.
-    This models price volatility where direct fuel data is unavailable.
-    """
+    """Synthetic fuel price simulation (GBM-style) for academic demonstration."""
     dt = 1 / 365.0
     prices = np.zeros((days + 1, n_paths), dtype=float)
     prices[0, :] = start_price
@@ -192,15 +197,23 @@ def run_streamlit():
     _safe_apply_global_styles()
     _inject_module_css()
 
+    st.markdown(
+        """
+        <div class="back-row">
+            🏠 <a href="/" target="_self">Back to Dashboard</a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     st.title("⚠️ Risk & Scenario Simulation")
     st.markdown(
-        '<div class="sia-subtext">This module models operational uncertainty using Monte Carlo simulation and scenario-based risk modelling.</div>',
+        '<div class="sia-subtext">This module models operational uncertainty using simulation and scenario-based risk modelling.</div>',
         unsafe_allow_html=True,
     )
 
     df = load_data()
 
-    # ✅ Match your actual train.csv columns
     delay_col = _first_existing_col(
         df,
         [
@@ -229,7 +242,6 @@ def run_streamlit():
     mean_delay = float(delay_series.mean())
     std_delay = float(delay_series.std())
     if not (std_delay > 0):
-        # Fallback std dev in case variance is zero in a synthetic slice
         std_delay = 10.0
 
     st.markdown('<div class="section-title">🎛️ Scenario Controls</div>', unsafe_allow_html=True)
@@ -242,7 +254,6 @@ def run_streamlit():
     with c3:
         crisis_mult = st.slider("Crisis multiplier", 1.0, 2.5, 1.15, step=0.05)
 
-    # Run immediately so the page is never blank
     delays = simulate_delay_monte_carlo(mean_delay, std_delay, sims, crisis_mult)
     kpis = delay_risk_kpis(delays, threshold)
 
@@ -261,7 +272,6 @@ def run_streamlit():
     st.markdown('<div class="section-title">📊 Simulated Delay Distribution</div>', unsafe_allow_html=True)
     st.markdown('<div class="hint">Binned histogram of simulated delays (auto-generated on load).</div>', unsafe_allow_html=True)
 
-    # Histogram bins (5-minute increments)
     upper = int(max(180, np.percentile(delays, 99) + 30))
     bins = np.arange(0, upper + 5, 5)
     hist, edges = np.histogram(delays, bins=bins)
@@ -289,7 +299,9 @@ def run_streamlit():
         return
 
     dist = pd.to_numeric(df[dist_col], errors="coerce")
-    tmp = pd.DataFrame({"distance": dist, "delay": pd.to_numeric(df[delay_col], errors="coerce")}).dropna()
+    tmp = pd.DataFrame(
+        {"distance": dist, "delay": pd.to_numeric(df[delay_col], errors="coerce")}
+    ).dropna()
 
     tmp["distance_bucket"] = pd.cut(tmp["distance"], bins=8)
     trend = tmp.groupby("distance_bucket", observed=True)["delay"].mean().reset_index()
