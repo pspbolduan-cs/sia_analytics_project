@@ -42,6 +42,22 @@ def run_streamlit_ui():
         st.markdown(cleaned, unsafe_allow_html=True)
 
     # ---------------------------------------------------
+    # Multipage navigation helper (WORKS with st.switch_page)
+    # ---------------------------------------------------
+    def go(page_file: str):
+        """
+        page_file example: "Module1_Flight_Performance.py"
+        This will switch to: pages/Module1_Flight_Performance.py
+        """
+        try:
+            st.switch_page(f"pages/{page_file}")
+        except Exception:
+            st.error(
+                "Navigation failed. Check that the file exists inside the /pages folder and the filename matches exactly:\n"
+                f"pages/{page_file}"
+            )
+
+    # ---------------------------------------------------
     # ABSOLUTE ASSET PATHS (fixes video/logo/images not loading)
     # ---------------------------------------------------
     BASE_DIR = Path(__file__).resolve().parent
@@ -86,6 +102,7 @@ def run_streamlit_ui():
     <style>
       .block-container { padding-top: 1.2rem !important; }
 
+      /* HERO */
       .heroWrap{
         position: relative;
         border-radius: 26px;
@@ -153,6 +170,7 @@ def run_streamlit_ui():
         font-weight: 800;
       }
 
+      /* Section headings */
       .sectionTitle{
         font-size: 2.2rem;
         font-weight: 950;
@@ -166,15 +184,7 @@ def run_streamlit_ui():
         margin-bottom: 1.1rem;
       }
 
-      .moduleGrid{
-        display:grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 18px;
-      }
-      @media (max-width: 980px){
-        .moduleGrid{ grid-template-columns: 1fr; }
-      }
-
+      /* Module cards */
       .moduleCard{
         background: #0f172a;
         border-radius: 22px;
@@ -182,6 +192,7 @@ def run_streamlit_ui():
         border: 1px solid rgba(255,255,255,0.10);
         box-shadow: 0 18px 45px rgba(0,0,0,0.18);
         transition: transform .15s ease, box-shadow .15s ease;
+        margin-bottom: 10px;
       }
       .moduleCard:hover{
         transform: translateY(-2px);
@@ -189,7 +200,7 @@ def run_streamlit_ui():
       }
 
       .thumbWrap{
-        height: 220px;
+        height: 230px;
         width: 100%;
         position: relative;
         overflow: hidden;
@@ -225,36 +236,12 @@ def run_streamlit_ui():
         line-height: 1.45;
         margin-bottom: 12px;
       }
-
-      .ctaRow{
-        display:flex;
-        align-items:center;
-        justify-content: space-between;
-        gap: 12px;
-        flex-wrap: wrap;
-        margin-top: 10px;
-      }
-      .ctaBtn{
-        display:inline-flex;
-        align-items:center;
-        gap: 10px;
-        padding: 10px 14px;
-        border-radius: 14px;
-        background: rgba(255,255,255,0.14);
-        border: 1px solid rgba(255,255,255,0.20);
-        color: rgba(255,255,255,0.95);
-        font-weight: 900;
-        text-decoration: none;
-        white-space: nowrap;
-      }
-      .ctaBtn:hover{
-        background: rgba(255,255,255,0.18);
-      }
       .ctaHint{
         color: rgba(255,255,255,0.70);
         font-weight: 800;
       }
 
+      /* Info cards */
       .infoCard{
         background: #ffffff;
         border-radius: 18px;
@@ -276,11 +263,19 @@ def run_streamlit_ui():
         font-size: 1.02rem;
         line-height: 1.55;
       }
+
+      /* Make Streamlit buttons nicer and full width */
+      div.stButton > button{
+        width: 100%;
+        border-radius: 14px !important;
+        padding: 0.7rem 1rem !important;
+        font-weight: 900 !important;
+      }
     </style>
     """)
 
     # ---------------------------------------------------
-    # HERO
+    # HERO (video + logo + title always visible)
     # ---------------------------------------------------
     video_block = ""
     if hero_video_uri:
@@ -331,7 +326,7 @@ risk scenarios, and cloud processing concepts.
 """)
 
     # ---------------------------------------------------
-    # INFO
+    # WHAT THIS DASHBOARD DOES
     # ---------------------------------------------------
     render_html('<div class="sectionTitle">📌 What this dashboard does</div>')
     render_html('<div class="sectionSub">A single entry point that explains the system and links to four analytics modules built on the same dataset + shared services.</div>')
@@ -361,45 +356,72 @@ risk scenarios, and cloud processing concepts.
 """)
 
     # ---------------------------------------------------
-    # MODULES
+    # MODULES SECTION (CLICKABLE BUTTONS THAT WORK)
     # ---------------------------------------------------
     render_html('<div style="height:18px;"></div>')
     render_html('<div class="sectionTitle">📊 Analytics Modules</div>')
     render_html('<div class="sectionSub">Click <b>Open module →</b> to navigate. Each module uses the same theme and dataset service.</div>')
 
-    def module_card(title, emoji, desc, hint, page_path, img_uri):
-        img_block = f'<img src="{img_uri}" alt="{title}">' if img_uri else ""
-        return f"""
+    def module_tile(img_uri, title, emoji, desc, hint, page_file):
+        render_html(f"""
 <div class="moduleCard">
 <div class="thumbWrap">
-{img_block}
+{"<img src='"+img_uri+"' alt='"+title+"'>" if img_uri else ""}
 <div class="thumbShade"></div>
 </div>
 
 <div class="moduleInner">
 <div class="moduleTitleRow"><span style="font-size:1.35rem;">{emoji}</span><span>{title}</span></div>
 <div class="moduleDesc">{desc}</div>
+<div class="ctaHint">{hint}</div>
+</div>
+</div>
+""")
+        if st.button("➡️ Open module →", key=f"open_{page_file}", use_container_width=True):
+            go(page_file)
 
-<div class="ctaRow">
-<a class="ctaBtn" href="/{page_path}" target="_self">➡️ Open module →</a>
-<span class="ctaHint">{hint}</span>
-</div>
-</div>
-</div>
-"""
+    col1, col2 = st.columns(2, gap="large")
+    with col1:
+        module_tile(
+            m1_uri,
+            "Flight Performance Analytics",
+            "✈️",
+            "Explore distance distribution, delay trends, crew/service indicators, and estimated fuel usage.",
+            "Interactive KPIs & charts",
+            "Module1_Flight_Performance.py",
+        )
+    with col2:
+        module_tile(
+            m2_uri,
+            "Customer Experience Analytics",
+            "😊",
+            "Analyse satisfaction outcomes, service ratings, and behavioural indicators affecting passenger experience.",
+            "Service quality insights",
+            "Module2_Customer_Experience.py",
+        )
 
-    grid_html = f"""
-<div class="moduleGrid">
-{module_card("Flight Performance Analytics","✈️","Explore distance distribution, delay trends, crew/service indicators, and estimated fuel usage.","Interactive KPIs & charts","pages/Module1_Flight_Performance.py",m1_uri)}
-{module_card("Customer Experience Analytics","😊","Analyse satisfaction outcomes, service ratings, and behavioural indicators affecting passenger experience.","Service quality insights","pages/Module2_Customer_Experience.py",m2_uri)}
-{module_card("Risk & Scenario Simulation","⚠️","Model operational uncertainty using Monte Carlo simulation and scenario-based disruption controls.","Probabilities, percentiles, worst-case outcomes","pages/Module3_Risk_Simulation.py",m3_uri)}
-{module_card("Cloud Analytics","☁️","Demonstrate scalable processing concepts and cloud-oriented analytics patterns.","Batch vs streaming + scaling concepts","pages/Module4_Cloud_Analytics.py",m4_uri)}
-</div>
-"""
-    render_html(grid_html)
+    col3, col4 = st.columns(2, gap="large")
+    with col3:
+        module_tile(
+            m3_uri,
+            "Risk & Scenario Simulation",
+            "⚠️",
+            "Model operational uncertainty using Monte Carlo simulation and scenario-based disruption controls.",
+            "Probabilities, percentiles, worst-case outcomes",
+            "Module3_Risk_Simulation.py",
+        )
+    with col4:
+        module_tile(
+            m4_uri,
+            "Cloud Analytics",
+            "☁️",
+            "Demonstrate scalable processing concepts and cloud-oriented analytics patterns.",
+            "Batch vs streaming + scaling concepts",
+            "Module4_Cloud_Analytics.py",
+        )
 
     render_html("<div style='height:16px;'></div>")
-    st.info("Tip: If an image/video is missing, confirm the filename and that it sits inside the /assets folder.")
+    st.info("Tip: If navigation fails, confirm the target file exists in /pages and the filename matches exactly.")
 
 
 # =============================================================
@@ -451,7 +473,12 @@ def run_cli():
 # ENTRY POINT
 # =============================================================
 if __name__ == "__main__":
+    # CLI MODE
+    # Usage: python3 Dashboard.py cli
     if len(sys.argv) > 1 and sys.argv[1].lower() == "cli":
         run_cli()
+
+    # STREAMLIT UI MODE
+    # Usage: streamlit run Dashboard.py
     else:
         run_streamlit_ui()
