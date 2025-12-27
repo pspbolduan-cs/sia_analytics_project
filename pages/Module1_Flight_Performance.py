@@ -36,15 +36,35 @@ def _safe_apply_global_styles() -> bool:
         return False
 
 
-def _inject_module_css() -> None:
-    """Module CSS + floating back button (hover dashboard style)."""
-    import streamlit as st
+def _first_existing_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
+    """Return first existing column name (case-safe)."""
+    cols_lower = {c.lower(): c for c in df.columns}
+    for cand in candidates:
+        if cand in df.columns:
+            return cand
+        cl = cand.lower()
+        if cl in cols_lower:
+            return cols_lower[cl]
+    return None
 
+
+def _render_html(st, html: str) -> None:
+    """
+    Streamlit Markdown turns lines with 4+ leading spaces into CODE.
+    This strips indentation so HTML always renders properly.
+    """
+    cleaned = "\n".join(line.lstrip() for line in html.splitlines()).strip()
+    st.markdown(cleaned, unsafe_allow_html=True)
+
+
+def _inject_module_css(st) -> None:
+    """Module CSS + floating back button (hover dashboard style)."""
     PRIMARY_NAVY = "#002663"
     BACKGROUND_CREAM = "#F5F3EE"
     TEXT_GREY = "#555555"
 
-    st.markdown(
+    _render_html(
+        st,
         f"""
         <style>
         .stApp {{ background-color: {BACKGROUND_CREAM}; }}
@@ -93,51 +113,12 @@ def _inject_module_css() -> None:
         .sia-back-float a:hover {{
             text-decoration: underline;
         }}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
 
-
-def _render_back_hover_only() -> None:
-    """Render ONLY the floating back-to-dashboard link."""
-    import streamlit as st
-
-    st.markdown(
-        """
-        <div class="sia-back-float">
-            🏠 <a href="./" target="_self">Back to Dashboard</a>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def _first_existing_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
-    """Return first existing column name (case-safe)."""
-    cols_lower = {c.lower(): c for c in df.columns}
-    for cand in candidates:
-        if cand in df.columns:
-            return cand
-        cl = cand.lower()
-        if cl in cols_lower:
-            return cols_lower[cl]
-    return None
-
-
-def _kpi_cards(st, items: list[tuple[str, str, str]]) -> None:
-    """
-    Lightweight KPI cards.
-    items: [(title, value, badge), ...]
-    """
-    PRIMARY_NAVY = "#002663"
-
-    st.markdown(
-        f"""
-        <style>
+        /* KPI cards */
         .kpiGrid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }}
         @media (max-width: 1200px){{ .kpiGrid {{ grid-template-columns: repeat(2, 1fr); }} }}
         @media (max-width: 700px){{ .kpiGrid {{ grid-template-columns: 1fr; }} }}
+
         .kpiCard{{
             background: white;
             border: 1px solid rgba(0,0,0,0.06);
@@ -159,9 +140,23 @@ def _kpi_cards(st, items: list[tuple[str, str, str]]) -> None:
         }}
         </style>
         """,
-        unsafe_allow_html=True,
     )
 
+
+def _render_back_hover_only(st) -> None:
+    """Render ONLY the floating back-to-dashboard link."""
+    _render_html(
+        st,
+        """
+        <div class="sia-back-float">
+            🏠 <a href="./" target="_self">Back to Dashboard</a>
+        </div>
+        """,
+    )
+
+
+def _kpi_cards(st, items: list[tuple[str, str, str]]) -> None:
+    """Render KPI cards (HTML)."""
     cards = []
     for title, value, badge in items:
         badge_html = f'<div class="kpiBadge">{badge}</div>' if badge else ""
@@ -175,7 +170,7 @@ def _kpi_cards(st, items: list[tuple[str, str, str]]) -> None:
             """
         )
 
-    st.markdown(f'<div class="kpiGrid">{"".join(cards)}</div>', unsafe_allow_html=True)
+    _render_html(st, f'<div class="kpiGrid">{"".join(cards)}</div>')
 
 
 # ============================================================
@@ -190,7 +185,6 @@ def prepare_flight_data() -> pd.DataFrame | None:
     if df is None or df.empty:
         return None
 
-    # Find the distance column robustly
     dist_col = _first_existing_col(df, ["Flight Distance", "FlightDistance", "Distance", "flight_distance"])
     if dist_col is None:
         return None
@@ -213,18 +207,18 @@ def run_flight_performance_ui():
     st.set_page_config(page_title="Flight Performance Analytics", page_icon="✈️", layout="wide")
 
     _safe_apply_global_styles()
-    _inject_module_css()
-    _render_back_hover_only()
+    _inject_module_css(st)
+    _render_back_hover_only(st)
 
     st.title("✈️ Flight Performance Analytics")
-    st.markdown(
+    _render_html(
+        st,
         """
         <div class="sia-subtext">
         Operational flight performance analytics: distance patterns, delay trends,
         crew service indicators, and <b>estimated fuel consumption</b> (simulated for academic use).
         </div>
         """,
-        unsafe_allow_html=True,
     )
 
     # -------------------------------
@@ -235,22 +229,17 @@ def run_flight_performance_ui():
         st.error("❌ Unable to load dataset or required columns (e.g., Flight Distance) are missing.")
         st.stop()
 
-    # ✅ TOTAL FLIGHTS (FIX): always based on the FULL dataset, not filtered / not dropna
+    # ✅ Total flights should be total rows from dataset
     total_flights_all = int(len(df))
 
-    # Robust columns
     dist_col = _first_existing_col(df, ["Flight Distance", "FlightDistance", "Distance", "flight_distance"])
-    dep_delay_col = _first_existing_col(
-        df, ["Departure Delay in Minutes", "DepartureDelay", "DepDelay", "departure_delay", "dep_delay"]
-    )
-    arr_delay_col = _first_existing_col(
-        df, ["Arrival Delay in Minutes", "ArrivalDelay", "ArrDelay", "arrival_delay", "arr_delay"]
-    )
+    dep_delay_col = _first_existing_col(df, ["Departure Delay in Minutes", "DepartureDelay", "DepDelay", "departure_delay", "dep_delay"])
+    arr_delay_col = _first_existing_col(df, ["Arrival Delay in Minutes", "ArrivalDelay", "ArrDelay", "arrival_delay", "arr_delay"])
 
     # -------------------------------
     # FILTERS
     # -------------------------------
-    st.markdown('<div class="section-title">🎛️ Filters</div>', unsafe_allow_html=True)
+    _render_html(st, '<div class="section-title">🎛️ Filters</div>')
 
     dist_series = pd.to_numeric(df[dist_col], errors="coerce").dropna()
     if dist_series.empty:
@@ -274,11 +263,10 @@ def run_flight_performance_ui():
     with c3:
         bins = st.slider("Histogram bins", 10, 60, 30, step=5)
 
-    # Filter df by distance range (DO NOT affect total_flights_all)
+    # Filter by distance (only affects filtered KPIs / charts)
     df_f = df.copy()
     df_f["_dist_num"] = pd.to_numeric(df_f[dist_col], errors="coerce")
     df_f = df_f[df_f["_dist_num"].between(dist_range[0], dist_range[1], inclusive="both")].dropna(subset=["_dist_num"])
-
     total_flights_filtered = int(len(df_f))
 
     if df_f.empty:
@@ -286,24 +274,13 @@ def run_flight_performance_ui():
         st.stop()
 
     # -------------------------------
-    # KPI SECTION
+    # KPI SECTION (FIXED RENDERING)
     # -------------------------------
     avg_distance = float(df_f["_dist_num"].mean())
-
-    avg_dep_delay = None
-    if dep_delay_col:
-        s = pd.to_numeric(df_f[dep_delay_col], errors="coerce")
-        avg_dep_delay = float(s.mean()) if s.notna().any() else None
-
-    avg_arr_delay = None
-    if arr_delay_col:
-        s = pd.to_numeric(df_f[arr_delay_col], errors="coerce")
-        avg_arr_delay = float(s.mean()) if s.notna().any() else None
 
     fuel_s = pd.to_numeric(df_f["Estimated Fuel Consumption (kg)"], errors="coerce")
     avg_fuel = float(fuel_s.mean()) if fuel_s.notna().any() else 0.0
 
-    # ✅ KPI FIX: show BOTH total flights and filtered flights so it never looks “wrong”
     kpis = [
         ("Total Flights", f"{total_flights_all:,}", "Entire dataset"),
         ("Flights in Filter", f"{total_flights_filtered:,}", "After distance filter"),
@@ -317,8 +294,8 @@ def run_flight_performance_ui():
     # -------------------------------
     # FLIGHT DISTANCE DISTRIBUTION
     # -------------------------------
-    st.markdown('<div class="section-title">📈 Flight Distance Distribution</div>', unsafe_allow_html=True)
-    st.markdown('<div class="hint">Histogram of flight distance for the selected range.</div>', unsafe_allow_html=True)
+    _render_html(st, '<div class="section-title">📈 Flight Distance Distribution</div>')
+    _render_html(st, '<div class="hint">Histogram of flight distance for the selected range.</div>')
 
     fig1, ax1 = plt.subplots()
     ax1.hist(df_f["_dist_num"], bins=bins)
@@ -331,8 +308,8 @@ def run_flight_performance_ui():
     # -------------------------------
     # DELAY ANALYSIS
     # -------------------------------
-    st.markdown('<div class="section-title">⏱ Arrival Delay vs Flight Distance</div>', unsafe_allow_html=True)
-    st.markdown('<div class="hint">Scatter plot (sampled for performance).</div>', unsafe_allow_html=True)
+    _render_html(st, '<div class="section-title">⏱ Arrival Delay vs Flight Distance</div>')
+    _render_html(st, '<div class="hint">Scatter plot (sampled for performance).</div>')
 
     sample_df = df_f.sample(n=min(sample_n, len(df_f)), random_state=42)
 
@@ -351,8 +328,8 @@ def run_flight_performance_ui():
     # -------------------------------
     # FUEL CONSUMPTION ANALYSIS
     # -------------------------------
-    st.markdown('<div class="section-title">⛽ Estimated Fuel Consumption vs Flight Distance</div>', unsafe_allow_html=True)
-    st.markdown('<div class="hint">Fuel is simulated from distance (academic estimation).</div>', unsafe_allow_html=True)
+    _render_html(st, '<div class="section-title">⛽ Estimated Fuel vs Flight Distance</div>')
+    _render_html(st, '<div class="hint">Fuel is simulated from distance (academic estimation).</div>')
 
     fuel = pd.to_numeric(sample_df["Estimated Fuel Consumption (kg)"], errors="coerce")
     fig3, ax3 = plt.subplots()
@@ -366,8 +343,8 @@ def run_flight_performance_ui():
     # -------------------------------
     # CREW PERFORMANCE
     # -------------------------------
-    st.markdown('<div class="section-title">👨‍✈️ Crew Service Performance</div>', unsafe_allow_html=True)
-    st.markdown('<div class="hint">Average rating (1–5) across available service columns.</div>', unsafe_allow_html=True)
+    _render_html(st, '<div class="section-title">👨‍✈️ Crew Service Performance</div>')
+    _render_html(st, '<div class="hint">Average rating (1–5) across available service columns.</div>')
 
     crew_cols = ["On-board service", "Inflight service", "Checkin service"]
     available = [c for c in crew_cols if c in df_f.columns]
