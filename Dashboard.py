@@ -1,8 +1,25 @@
+# ============================================
+# Author: Qian Zhu
+# Date: 2025-12
+# Singapore Airlines Analytics System
+# Dashboard (Home Page) + CLI
+# ============================================
+
+import sys
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
+
+# =============================================================
+# STREAMLIT UI MODE
+# =============================================================
 def run_streamlit_ui():
     import streamlit as st
     from pathlib import Path
     import base64
 
+    # Optional global styles (won't crash if missing)
     try:
         from services.ui_service import apply_global_styles
     except Exception:
@@ -17,7 +34,7 @@ def run_streamlit_ui():
             pass
 
     # ---------------------------------------------------
-    # ✅ ABSOLUTE ASSET PATHS (this is the main fix)
+    # ABSOLUTE ASSET PATHS (fixes video/logo/images not loading)
     # ---------------------------------------------------
     BASE_DIR = Path(__file__).resolve().parent
     ASSETS_DIR = BASE_DIR / "assets"
@@ -55,16 +72,15 @@ def run_streamlit_ui():
     m4_uri = _to_data_uri(MODULE_4_PATH, _mime_for_image(MODULE_4_PATH))
 
     # ---------------------------------------------------
-    # Optional: quick debug (remove later)
-    # ---------------------------------------------------
-    # st.caption(f"hero.mp4 exists: {HERO_VIDEO_PATH.exists()} | logo exists: {LOGO_PATH.exists()}")
-
-    # ---------------------------------------------------
-    # CSS (keep yours; this includes the key hero layering)
+    # CSS (hero + module cards + clean layout)
     # ---------------------------------------------------
     st.markdown(
         """
         <style>
+          /* Remove extra top padding in main container */
+          .block-container { padding-top: 1.2rem !important; }
+
+          /* HERO */
           .heroWrap{
             position: relative;
             border-radius: 26px;
@@ -72,7 +88,7 @@ def run_streamlit_ui():
             margin-bottom: 2.2rem;
             box-shadow: 0 18px 45px rgba(0,0,0,0.22);
             border: 1px solid rgba(255,255,255,0.10);
-            min-height: 380px;
+            min-height: 390px;
           }
           .heroVideo{
             position:absolute; inset:0;
@@ -85,7 +101,7 @@ def run_streamlit_ui():
             position:absolute; inset:0;
             background: linear-gradient(135deg,
               rgba(0,26,77,0.92) 0%,
-              rgba(0,58,128,0.72) 45%,
+              rgba(0,58,128,0.70) 45%,
               rgba(0,26,77,0.92) 100%);
             z-index:1;
           }
@@ -131,13 +147,135 @@ def run_streamlit_ui():
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
             font-weight: 800;
           }
+
+          /* Section headings */
+          .sectionTitle{
+            font-size: 2.2rem;
+            font-weight: 950;
+            letter-spacing: -0.5px;
+            margin: 0 0 0.3rem 0;
+            color: #0b2c5f;
+          }
+          .sectionSub{
+            color: rgba(0,0,0,0.60);
+            font-size: 1.05rem;
+            margin-bottom: 1.1rem;
+          }
+
+          /* Module grid */
+          .moduleGrid{
+            display:grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+          }
+          @media (max-width: 980px){
+            .moduleGrid{ grid-template-columns: 1fr; }
+          }
+
+          .moduleCard{
+            background: #0f172a; /* slate-ish */
+            border-radius: 22px;
+            overflow:hidden;
+            border: 1px solid rgba(255,255,255,0.10);
+            box-shadow: 0 18px 45px rgba(0,0,0,0.18);
+            transition: transform .15s ease, box-shadow .15s ease;
+          }
+          .moduleCard:hover{
+            transform: translateY(-2px);
+            box-shadow: 0 22px 55px rgba(0,0,0,0.22);
+          }
+
+          .thumbWrap{
+            height: 200px;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+          }
+          .thumbWrap img{
+            width:100%;
+            height:100%;
+            object-fit: cover;
+            display:block;
+          }
+          .thumbShade{
+            position:absolute;
+            inset:0;
+            background: linear-gradient(180deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.25) 100%);
+          }
+
+          .moduleInner{
+            padding: 16px 18px 16px 18px;
+            color: rgba(255,255,255,0.92);
+          }
+          .moduleTitleRow{
+            display:flex;
+            align-items:center;
+            gap: 10px;
+            font-size: 1.28rem;
+            font-weight: 950;
+            margin-bottom: 6px;
+          }
+          .moduleDesc{
+            color: rgba(255,255,255,0.74);
+            font-size: 1.02rem;
+            line-height: 1.45;
+            margin-bottom: 12px;
+          }
+          .ctaRow{
+            display:flex;
+            align-items:center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+          }
+          .ctaBtn{
+            display:inline-flex;
+            align-items:center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.14);
+            border: 1px solid rgba(255,255,255,0.20);
+            color: rgba(255,255,255,0.95);
+            font-weight: 900;
+            text-decoration: none;
+          }
+          .ctaBtn:hover{
+            background: rgba(255,255,255,0.18);
+          }
+          .ctaHint{
+            color: rgba(255,255,255,0.70);
+            font-weight: 800;
+          }
+
+          .infoCard{
+            background: #ffffff;
+            border-radius: 18px;
+            padding: 16px 18px;
+            border: 1px solid rgba(0,0,0,0.06);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.08);
+            margin-top: 18px;
+          }
+          .infoCard h3{
+            margin: 0 0 8px 0;
+            font-size: 1.25rem;
+            font-weight: 950;
+            color: #0b2c5f;
+          }
+          .infoCard ul{
+            margin: 0;
+            padding-left: 18px;
+            color: rgba(0,0,0,0.70);
+            font-size: 1.02rem;
+            line-height: 1.55;
+          }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
     # ---------------------------------------------------
-    # ✅ HERO (title + logo forced visible, no “code showing”)
+    # HERO (video + logo + title always visible)
     # ---------------------------------------------------
     video_block = ""
     if hero_video_uri:
@@ -192,8 +330,8 @@ def run_streamlit_ui():
                 <span class="tagPill"><span class="tagDot"></span>Synthetic dataset: <span class="kbd">assets/train.csv</span></span>
               </div>
 
-              {"<div style='margin-top:12px; color:rgba(255,255,255,0.85); font-weight:800;'>⚠️ hero.mp4 not found at <span class='kbd'>assets/hero.mp4</span></div>" if not hero_video_uri else ""}
-              {"<div style='margin-top:8px; color:rgba(255,255,255,0.85); font-weight:800;'>⚠️ logo not found at <span class='kbd'>assets/singapore_airlines_logo.png</span></div>" if not logo_uri else ""}
+              {"<div style='margin-top:12px; color:rgba(255,255,255,0.90); font-weight:900;'>⚠️ Video not found: <span class='kbd'>assets/hero.mp4</span></div>" if not hero_video_uri else ""}
+              {"<div style='margin-top:8px; color:rgba(255,255,255,0.90); font-weight:900;'>⚠️ Logo not found: <span class='kbd'>assets/singapore_airlines_logo.png</span></div>" if not logo_uri else ""}
             </div>
           </div>
         </div>
@@ -201,5 +339,176 @@ def run_streamlit_ui():
         unsafe_allow_html=True,
     )
 
-    # ✅ Keep the rest of your page below (modules, etc.)
-    # Use m1_uri, m2_uri, m3_uri, m4_uri for your cards.
+    # ---------------------------------------------------
+    # WHAT THIS DASHBOARD DOES
+    # ---------------------------------------------------
+    st.markdown('<div class="sectionTitle">📌 What this dashboard does</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="sectionSub">A single entry point that explains the system and links to four analytics modules built on the same dataset + shared services.</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+        <div class="infoCard">
+          <h3>How to use</h3>
+          <ul>
+            <li>Start here and open a module using <b>Open module</b>.</li>
+            <li>Each module offers interactive controls (filters/sliders) + charts.</li>
+            <li>Risk Simulation explains uncertainty (probability, percentiles, worst-case).</li>
+            <li>Cloud Analytics demonstrates scalable processing concepts (batch vs streaming).</li>
+          </ul>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+        <div class="infoCard">
+          <h3>Data & concepts</h3>
+          <ul>
+            <li><b>Dataset:</b> synthetic <span class="kbd">assets/train.csv</span> (academic use).</li>
+            <li><b>Assumptions:</b> controlled simulation is used where metrics are missing.</li>
+            <li><b>Architecture:</b> modular pages + shared services (data / UI helpers).</li>
+            <li><b>UI + CLI:</b> web UI for visuals + menu-driven CLI for quick summaries.</li>
+          </ul>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # ---------------------------------------------------
+    # MODULES SECTION (with images that fill the entire top area)
+    # ---------------------------------------------------
+    st.markdown('<div style="height:18px;"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="sectionTitle">📊 Analytics Modules</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="sectionSub">Click <b>Open module →</b> to navigate. Each module uses the same theme and dataset service.</div>',
+        unsafe_allow_html=True,
+    )
+
+    def module_card(title, emoji, desc, hint, page_path, img_uri):
+        # Streamlit multipage navigation works best with relative /?page= names,
+        # but your project uses direct file links; keep as you had.
+        # IMPORTANT: these hrefs should match your /pages filenames exactly.
+        return f"""
+        <div class="moduleCard">
+          <div class="thumbWrap">
+            {"<img src='"+img_uri+"' alt='"+title+"'>" if img_uri else ""}
+            <div class="thumbShade"></div>
+          </div>
+
+          <div class="moduleInner">
+            <div class="moduleTitleRow"><span style="font-size:1.35rem;">{emoji}</span><span>{title}</span></div>
+            <div class="moduleDesc">{desc}</div>
+
+            <div class="ctaRow">
+              <a class="ctaBtn" href="/{page_path}" target="_self">➡️ Open module →</a>
+              <span class="ctaHint">{hint}</span>
+            </div>
+          </div>
+        </div>
+        """
+
+    grid_html = f"""
+    <div class="moduleGrid">
+      {module_card(
+        "Flight Performance Analytics",
+        "✈️",
+        "Explore distance distribution, delay trends, crew/service indicators, and estimated fuel usage.",
+        "Interactive KPIs & charts",
+        "pages/Module1_Flight_Performance.py",
+        m1_uri
+      )}
+      {module_card(
+        "Customer Experience Analytics",
+        "😊",
+        "Analyse satisfaction outcomes, service ratings, and behavioural indicators affecting passenger experience.",
+        "Service quality insights",
+        "pages/Module2_Customer_Experience.py",
+        m2_uri
+      )}
+      {module_card(
+        "Risk & Scenario Simulation",
+        "⚠️",
+        "Model operational uncertainty using Monte Carlo simulation and scenario-based disruption controls.",
+        "Probabilities, percentiles, worst-case outcomes",
+        "pages/Module3_Risk_Simulation.py",
+        m3_uri
+      )}
+      {module_card(
+        "Cloud Analytics",
+        "☁️",
+        "Demonstrate scalable processing concepts and cloud-oriented analytics patterns.",
+        "Batch vs streaming + scaling concepts",
+        "pages/Module4_Cloud_Analytics.py",
+        m4_uri
+      )}
+    </div>
+    """
+    st.markdown(grid_html, unsafe_allow_html=True)
+
+    # Friendly footer note
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+    st.info("Tip: If an image/video is missing, confirm the filename and that it sits inside the /assets folder.")
+
+
+# =============================================================
+# CLI MODE
+# =============================================================
+def run_cli():
+    from pages.Module1_Flight_Performance import run_flight_performance_cli
+    from pages.Module2_Customer_Experience import run_customer_experience_cli
+
+    print("===========================================")
+    print("   Singapore Airlines Analytics System CLI")
+    print("===========================================")
+
+    while True:
+        print("\n1. Flight Performance Analytics")
+        print("2. Customer Experience Analytics")
+        print("3. Risk & Scenario Simulation")
+        print("4. Cloud Analytics")
+        print("5. Exit\n")
+
+        choice = input("Enter option (1–5): ").strip()
+
+        if choice == "1":
+            run_flight_performance_cli()
+
+        elif choice == "2":
+            run_customer_experience_cli()
+
+        elif choice == "3":
+            print("\n[CLI] Risk Simulation module is visualization-focused.")
+            print("Please use Streamlit UI for full functionality.")
+            input("\nPress ENTER to return to menu...")
+
+        elif choice == "4":
+            print("\n[CLI] Cloud Analytics module demonstrates cloud execution.")
+            print("Please use Streamlit UI for full functionality.")
+            input("\nPress ENTER to return to menu...")
+
+        elif choice == "5":
+            print("Goodbye.")
+            break
+
+        else:
+            print("❌ Invalid option.")
+            input("Press ENTER to continue...")
+
+
+# =============================================================
+# ENTRY POINT
+# =============================================================
+if __name__ == "__main__":
+    # CLI MODE
+    # Usage: python3 Dashboard.py cli
+    if len(sys.argv) > 1 and sys.argv[1].lower() == "cli":
+        run_cli()
+
+    # STREAMLIT UI MODE
+    # Usage: streamlit run Dashboard.py
+    else:
+        run_streamlit_ui()
