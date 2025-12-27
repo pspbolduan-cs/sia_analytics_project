@@ -8,12 +8,6 @@
 # scenario-based risk modelling. Because real airline operational
 # data is confidential, a synthetic dataset (train.csv) is used for
 # academic demonstration purposes.
-#
-# Key Concepts:
-# - Monte Carlo simulation for delay risk modelling
-# - Scenario multiplier for disruption impact
-# - Synthetic fuel price volatility simulation (GBM-style)
-# - Streamlit UI + CLI execution
 # ============================================================
 
 import numpy as np
@@ -117,7 +111,7 @@ def _inject_module_css():
 
 
 def _kpi_card(st, title: str, value: str, badge: str = ""):
-    """Render a consistent KPI card."""
+    """Render a KPI card."""
     badge_html = f'<div class="kpi-badge">{badge}</div>' if badge else ""
     st.markdown(
         f"""
@@ -147,14 +141,14 @@ def _first_existing_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
 # Simulation Models
 # -----------------------------
 def simulate_delay_monte_carlo(mean_delay: float, std_delay: float, n: int, crisis_multiplier: float) -> np.ndarray:
-    """Monte Carlo delay simulation using dataset mean/std and a disruption multiplier."""
+    """Delay simulation based on dataset mean/std and a disruption multiplier."""
     delays = np.random.normal(loc=mean_delay, scale=std_delay, size=n)
     delays = np.clip(delays, 0, None)
     return delays * crisis_multiplier
 
 
 def delay_risk_kpis(delays: np.ndarray, threshold: float) -> dict:
-    """Compute operational risk KPIs from simulated delays."""
+    """Compute risk KPIs from simulated delays."""
     return {
         "expected": float(np.mean(delays)),
         "p_over": float(np.mean(delays > threshold) * 100.0),
@@ -190,9 +184,7 @@ def simulate_fuel_price_paths(
 # -----------------------------
 # Streamlit UI
 # -----------------------------
-def run_streamlit(import streamlit as st
-st.error("✅ PHILIPPE FORK MODULE 3 LIVE — TEST 999")
-):
+def run_streamlit():
     import streamlit as st
     from services.data_service import load_data
 
@@ -285,13 +277,25 @@ st.error("✅ PHILIPPE FORK MODULE 3 LIVE — TEST 999")
 
     f1, f2, f3 = st.columns(3)
     with f1:
-        start_price = st.number_input("Starting fuel price (USD)", min_value=20.0, max_value=250.0, value=85.0, step=1.0)
+        start_price = st.number_input(
+            "Starting fuel price (USD)",
+            min_value=20.0,
+            max_value=250.0,
+            value=85.0,
+            step=1.0,
+        )
     with f2:
         days = st.slider("Days to simulate", 30, 365, 180, step=15)
     with f3:
         vol = st.slider("Annual volatility", 0.05, 0.80, 0.35, step=0.05)
 
-    fuel_paths = simulate_fuel_price_paths(start_price, days, annual_vol=vol, annual_drift=0.03, n_paths=18)
+    fuel_paths = simulate_fuel_price_paths(
+        start_price=start_price,
+        days=days,
+        annual_vol=vol,
+        annual_drift=0.03,
+        n_paths=18,
+    )
     st.line_chart(fuel_paths)
 
     st.markdown('<div class="section-title">🧭 Context: Distance vs Delay (Dataset Trend)</div>', unsafe_allow_html=True)
@@ -301,9 +305,7 @@ st.error("✅ PHILIPPE FORK MODULE 3 LIVE — TEST 999")
         return
 
     dist = pd.to_numeric(df[dist_col], errors="coerce")
-    tmp = pd.DataFrame(
-        {"distance": dist, "delay": pd.to_numeric(df[delay_col], errors="coerce")}
-    ).dropna()
+    tmp = pd.DataFrame({"distance": dist, "delay": pd.to_numeric(df[delay_col], errors="coerce")}).dropna()
 
     tmp["distance_bucket"] = pd.cut(tmp["distance"], bins=8)
     trend = tmp.groupby("distance_bucket", observed=True)["delay"].mean().reset_index()
