@@ -20,16 +20,6 @@ def _read_bytes(path: str) -> bytes:
     return p.read_bytes() if p.exists() else b""
 
 
-def _data_uri(path: str, mime: str) -> str:
-    import base64
-
-    data = _read_bytes(path)
-    if not data:
-        return ""
-    b64 = base64.b64encode(data).decode("utf-8")
-    return f"data:{mime};base64,{b64}"
-
-
 def _guess_image_mime(path: str) -> str:
     p = path.lower()
     if p.endswith(".png"):
@@ -41,11 +31,21 @@ def _guess_image_mime(path: str) -> str:
     return "image/png"
 
 
+def _data_uri(path: str, mime: str) -> str:
+    import base64
+    data = _read_bytes(path)
+    if not data:
+        return ""
+    b64 = base64.b64encode(data).decode("utf-8")
+    return f"data:{mime};base64,{b64}"
+
+
 # =============================================================
 # STREAMLIT UI MODE
 # =============================================================
 def run_streamlit_ui():
     import streamlit as st
+    import streamlit.components.v1 as components
 
     try:
         from services.ui_service import apply_global_styles
@@ -61,7 +61,7 @@ def run_streamlit_ui():
             pass
 
     # -------------------------
-    # Asset paths (must match your repo)
+    # Asset paths (must match your repo exactly)
     # -------------------------
     HERO_VIDEO = "assets/hero.mp4"
     LOGO = "assets/singapore_airlines_logo.png"
@@ -72,7 +72,7 @@ def run_streamlit_ui():
     MODULE_4 = "assets/module4.png"
 
     # -------------------------
-    # Embed assets as data URIs
+    # Embed as base64 so Cloud/paths never break
     # -------------------------
     hero_video_uri = _data_uri(HERO_VIDEO, "video/mp4")
     logo_uri = _data_uri(LOGO, _guess_image_mime(LOGO))
@@ -83,7 +83,7 @@ def run_streamlit_ui():
     m4_uri = _data_uri(MODULE_4, _guess_image_mime(MODULE_4))
 
     # -------------------------
-    # CSS
+    # CSS (global)
     # -------------------------
     st.markdown(
         """
@@ -219,21 +219,13 @@ def run_streamlit_ui():
             background: #0B1220;
             border: 1px solid rgba(255,255,255,0.10);
             box-shadow: 0 12px 34px rgba(0,0,0,0.18);
-            transition: transform 120ms ease, box-shadow 120ms ease;
           }
-          .moduleCard:hover{
-            transform: translateY(-2px);
-            box-shadow: 0 18px 48px rgba(0,0,0,0.24);
-          }
-
-          /* IMPORTANT: image fills full header */
           .thumb{
             width: 100%;
             height: 210px;
             object-fit: cover;
             display:block;
           }
-
           .moduleInner{ padding: 18px 18px 16px 18px; }
           .moduleTitleRow{
             display:flex;
@@ -318,29 +310,30 @@ def run_streamlit_ui():
     )
 
     # -------------------------
-    # HERO (video + overlay + content)
+    # HERO HTML (render with components.html)
     # -------------------------
-    if not hero_video_uri:
-        video_html = ""
-        video_note = '<div class="warn">⚠️ hero.mp4 not found at <span class="kbd">assets/hero.mp4</span></div>'
-    else:
+    video_html = ""
+    video_note = ""
+    if hero_video_uri:
         video_html = f"""
             <video class="heroVideo" autoplay muted loop playsinline>
               <source src="{hero_video_uri}" type="video/mp4" />
             </video>
         """
-        video_note = ""
-
-    if not logo_uri:
-        logo_html = '<div class="logoChip"><div class="warn">⚠️ Logo missing</div></div>'
     else:
+        video_note = '<div class="warn">⚠️ Missing <span class="kbd">assets/hero.mp4</span></div>'
+
+    logo_html = ""
+    if logo_uri:
         logo_html = f"""
             <div class="logoChip">
               <img src="{logo_uri}" alt="Singapore Airlines logo">
             </div>
         """
+    else:
+        logo_html = '<div class="logoChip"><div class="warn">⚠️ Missing logo</div></div>'
 
-    hero_html = f"""
+    hero_block = f"""
       <div class="heroWrap">
         {video_html}
         <div class="heroOverlay"></div>
@@ -362,10 +355,12 @@ def run_streamlit_ui():
         </div>
       </div>
     """
-    st.markdown(hero_html, unsafe_allow_html=True)
+
+    # IMPORTANT: components.html renders HTML directly (prevents raw HTML showing as text)
+    components.html(hero_block, height=430, scrolling=False)
 
     # -------------------------
-    # Info sections
+    # Info sections (normal markdown)
     # -------------------------
     st.markdown('<div class="sectionTitle">📌 What this dashboard does</div>', unsafe_allow_html=True)
     st.markdown(
@@ -399,7 +394,7 @@ def run_streamlit_ui():
     )
 
     # -------------------------
-    # Modules grid (images fill header)
+    # Module cards grid (render with components.html so images always fill + no raw HTML)
     # -------------------------
     st.markdown('<div class="sectionTitle">📊 Analytics Modules</div>', unsafe_allow_html=True)
     st.markdown(
@@ -407,68 +402,45 @@ def run_streamlit_ui():
         unsafe_allow_html=True,
     )
 
-    # Streamlit multipage link helper:
-    can_page_link = hasattr(st, "page_link")
-
-    def open_link_html(page_path: str) -> str:
-        return f'<a class="ctaBtn" href="/{page_path}" target="_self">Open module →</a>'
-
-    def module_card(img_uri: str, icon: str, title: str, desc: str, hint: str, page_path: str):
-        # Fallback if image missing
-        if not img_uri:
-            img_tag = '<div style="height:210px;background:linear-gradient(135deg,#001A4D,#003A80)"></div>'
+    def card_html(img_uri: str, icon: str, title: str, desc: str, hint: str, page_path: str) -> str:
+        if img_uri:
+            thumb = f'<img class="thumb" src="{img_uri}" alt="{title}">'
         else:
-            img_tag = f'<img class="thumb" src="{img_uri}" alt="{title}">'
+            thumb = '<div style="height:210px;background:linear-gradient(135deg,#001A4D,#003A80)"></div>'
 
-        st.markdown(
-            f"""
-            <div class="moduleCard">
-              {img_tag}
-              <div class="moduleInner">
-                <div class="moduleTitleRow"><span style="font-size:1.35rem;">{icon}</span><span>{title}</span></div>
-                <div class="moduleDesc">{desc}</div>
-                <div class="ctaRow">
-                  <div class="ctaHint">{hint}</div>
-                  {"<!-- streamlit link below -->" if can_page_link else open_link_html(page_path)}
-                </div>
-              </div>
+        # NOTE: Streamlit multipage routing works best with /?page=... but /pages/file.py usually works in your setup
+        return f"""
+        <div class="moduleCard">
+          {thumb}
+          <div class="moduleInner">
+            <div class="moduleTitleRow"><span style="font-size:1.35rem;">{icon}</span><span>{title}</span></div>
+            <div class="moduleDesc">{desc}</div>
+            <div class="ctaRow">
+              <div class="ctaHint">{hint}</div>
+              <a class="ctaBtn" href="/{page_path}" target="_self">Open module →</a>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
+          </div>
+        </div>
+        """
 
-        if can_page_link:
-            st.page_link(page_path, label="Open module →", icon="➡️")
+    grid_html = f"""
+      <div class="grid">
+        {card_html(m1_uri,"✈️","Flight Performance Analytics",
+          "Explore distance distribution, delay trends, crew/service indicators, and estimated fuel usage.",
+          "Interactive KPIs & charts","pages/Module1_Flight_Performance.py")}
+        {card_html(m2_uri,"😊","Customer Experience Analytics",
+          "Analyse satisfaction outcomes, service ratings, and behavioural indicators affecting passenger experience.",
+          "Service quality insights","pages/Module2_Customer_Experience.py")}
+        {card_html(m3_uri,"⚠️","Risk & Scenario Simulation",
+          "Model operational uncertainty using Monte Carlo simulation and scenario-based disruption controls.",
+          "Probabilities, percentiles, worst-case outcomes","pages/Module3_Risk_Simulation.py")}
+        {card_html(m4_uri,"☁️","Cloud Analytics",
+          "Demonstrate scalable processing concepts and cloud-oriented analytics patterns.",
+          "Batch vs streaming + scaling concepts","pages/Module4_Cloud_Analytics.py")}
+      </div>
+    """
 
-    col1, col2 = st.columns(2)
-
-    with col1:
-        module_card(
-            m1_uri, "✈️", "Flight Performance Analytics",
-            "Explore distance distribution, delay trends, crew/service indicators, and estimated fuel usage.",
-            "Interactive KPIs & charts",
-            "pages/Module1_Flight_Performance.py",
-        )
-        module_card(
-            m3_uri, "⚠️", "Risk & Scenario Simulation",
-            "Model operational uncertainty using Monte Carlo simulation and scenario-based disruption controls.",
-            "Probabilities, percentiles, worst-case outcomes",
-            "pages/Module3_Risk_Simulation.py",
-        )
-
-    with col2:
-        module_card(
-            m2_uri, "😊", "Customer Experience Analytics",
-            "Analyse satisfaction outcomes, service ratings, and behavioural indicators affecting passenger experience.",
-            "Service quality insights",
-            "pages/Module2_Customer_Experience.py",
-        )
-        module_card(
-            m4_uri, "☁️", "Cloud Analytics",
-            "Demonstrate scalable processing concepts and cloud-oriented analytics patterns.",
-            "Batch vs streaming + scaling concepts",
-            "pages/Module4_Cloud_Analytics.py",
-        )
+    components.html(grid_html, height=980, scrolling=False)
 
 
 # =============================================================
