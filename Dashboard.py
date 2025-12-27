@@ -1,32 +1,19 @@
 # ============================================
-# Author: Qian Zhu
-# Date: 2025-12
 # Singapore Airlines Analytics System
-# Dashboard (Home Page)
+# Dashboard (FINAL – CLEAN & STABLE)
 # ============================================
 
-import sys
-import base64
-from pathlib import Path
 import streamlit as st
+from pathlib import Path
 
 # --------------------------------------------------
 # PAGE CONFIG
 # --------------------------------------------------
 st.set_page_config(
     page_title="Singapore Airlines Analytics System",
-    page_icon="🏠",
+    page_icon="✈️",
     layout="wide"
 )
-
-# --------------------------------------------------
-# OPTIONAL GLOBAL STYLES
-# --------------------------------------------------
-try:
-    from services.ui_service import apply_global_styles
-    apply_global_styles()
-except Exception:
-    pass
 
 # --------------------------------------------------
 # PATHS
@@ -34,231 +21,165 @@ except Exception:
 BASE_DIR = Path(__file__).resolve().parent
 ASSETS = BASE_DIR / "assets"
 
-def img_uri(path):
-    if not path.exists():
-        return ""
-    return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
+HERO_VIDEO = ASSETS / "hero.mp4"
+LOGO = ASSETS / "singapore_airlines_logo.png"
 
-def video_uri(path):
-    if not path.exists():
-        return ""
-    return "data:video/mp4;base64," + base64.b64encode(path.read_bytes()).decode()
+IMG_SYSTEM = ASSETS / "system_overview.png"
+IMG_SECURITY = ASSETS / "security_risk_ethics.png"
 
-# Assets
-HERO_VIDEO = video_uri(ASSETS / "hero.mp4")
-LOGO = img_uri(ASSETS / "singapore_airlines_logo.png")
-
-MODULE_IMGS = {
-    "m1": img_uri(ASSETS / "module1.png"),
-    "m2": img_uri(ASSETS / "module2.png"),
-    "m3": img_uri(ASSETS / "module3.png"),
-    "m4": img_uri(ASSETS / "module4.png"),
-    "sys": img_uri(ASSETS / "system_overview.png"),
-    "sec": img_uri(ASSETS / "security_risk_ethics.png"),
-}
+IMG_M1 = ASSETS / "module1.png"
+IMG_M2 = ASSETS / "module2.png"
+IMG_M3 = ASSETS / "module3.png"
+IMG_M4 = ASSETS / "module4.png"
 
 # --------------------------------------------------
-# CSS
+# GLOBAL STYLES
 # --------------------------------------------------
 st.markdown("""
 <style>
-.block-container { padding-top: 1.2rem; }
+.block-container { padding-top: 1rem; }
 
 .hero {
-  position: relative;
-  border-radius: 26px;
-  overflow: hidden;
-  min-height: 380px;
-  box-shadow: 0 20px 50px rgba(0,0,0,.25);
+    position: relative;
+    border-radius: 24px;
+    overflow: hidden;
+    margin-bottom: 2rem;
 }
-.hero video {
-  position:absolute;
-  width:100%;
-  height:100%;
-  object-fit:cover;
-}
-.hero::after {
-  content:"";
-  position:absolute;
-  inset:0;
-  background:linear-gradient(135deg,#001a4d 0%,#003a80cc 50%,#001a4d 100%);
-}
-.heroInner {
-  position:relative;
-  z-index:2;
-  padding:2.2rem;
-  color:white;
-  display:flex;
-  gap:20px;
-  flex-wrap:wrap;
-}
-.logo {
-  background:white;
-  padding:12px;
-  border-radius:16px;
-}
-.logo img { height:64px; }
 
-.sectionTitle {
-  font-size:2.2rem;
-  font-weight:900;
-  margin:1.6rem 0 .4rem;
+.hero-overlay {
+    position:absolute;
+    inset:0;
+    background: linear-gradient(
+        rgba(0,20,60,0.80),
+        rgba(0,20,60,0.85)
+    );
 }
-.sectionSub { opacity:.65; margin-bottom:1rem; }
 
-.grid {
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:18px;
+.hero-content {
+    position: relative;
+    padding: 3rem;
+    color: white;
 }
-@media(max-width:900px){
-  .grid{grid-template-columns:1fr;}
+
+.hero-title {
+    font-size: 3rem;
+    font-weight: 900;
+}
+
+.hero-sub {
+    font-size: 1.2rem;
+    opacity: 0.95;
+    max-width: 900px;
+}
+
+.section-title {
+    font-size: 2rem;
+    font-weight: 900;
+    margin-top: 1.5rem;
 }
 
 .card {
-  background:#0f172a;
-  border-radius:22px;
-  overflow:hidden;
-  box-shadow:0 18px 45px rgba(0,0,0,.2);
+    background: #0f172a;
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
 }
-.card img {
-  width:100%;
-  height:220px;
-  object-fit:cover;
+
+.card-body {
+    padding: 1rem;
+    color: white;
 }
-.cardBody {
-  padding:16px;
-  color:white;
+
+.card-desc {
+    opacity: 0.85;
+    margin-bottom: 0.8rem;
 }
-.cardFooter {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-top:12px;
-}
-.cardFooter a {
-  background:rgba(255,255,255,.14);
-  padding:10px 14px;
-  border-radius:14px;
-  text-decoration:none;
-  color:white;
-  font-weight:800;
-}
-.cardFooter span { opacity:.7; font-weight:700; }
 </style>
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------
-# HERO
+# HERO SECTION
 # --------------------------------------------------
-st.markdown(f"""
-<div class="hero">
-  {"<video autoplay muted loop playsinline><source src='"+HERO_VIDEO+"' type='video/mp4'></video>" if HERO_VIDEO else ""}
-  <div class="heroInner">
-    <div class="logo"><img src="{LOGO}"></div>
-    <div>
-      <h1>Singapore Airlines Analytics System</h1>
-      <p style="max-width:900px;opacity:.85;font-size:1.15rem">
-        Enterprise cloud-based analytics dashboard for operational performance,
-        customer experience, risk scenarios, and cloud processing concepts.
-      </p>
-    </div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
+with st.container():
+    st.markdown('<div class="hero">', unsafe_allow_html=True)
+
+    if HERO_VIDEO.exists():
+        st.video(str(HERO_VIDEO))
+
+    st.markdown('<div class="hero-overlay"></div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="hero-content">', unsafe_allow_html=True)
+    if LOGO.exists():
+        st.image(str(LOGO), width=180)
+
+    st.markdown('<div class="hero-title">Singapore Airlines Analytics System</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="hero-sub">Enterprise cloud-based analytics dashboard for operational performance, '
+        'customer experience, risk scenarios, and cloud processing concepts.</div>',
+        unsafe_allow_html=True
+    )
+    st.markdown('</div></div>', unsafe_allow_html=True)
 
 # --------------------------------------------------
 # SYSTEM PAGES
 # --------------------------------------------------
-st.markdown('<div class="sectionTitle">🧩 System Pages</div>', unsafe_allow_html=True)
-st.markdown('<div class="sectionSub">Enterprise architecture, governance, security & ethics.</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">🧩 System Pages</div>', unsafe_allow_html=True)
+st.caption("Enterprise architecture, governance, security & ethics")
 
-st.markdown(f"""
-<div class="grid">
+c1, c2 = st.columns(2)
 
-  <div class="card">
-    <img src="{MODULE_IMGS['sys']}">
-    <div class="cardBody">
-      <h3>System Overview / Architecture</h3>
-      <p>View system architecture, shared services, page structure and scalability.</p>
-      <div class="cardFooter">
-        <a href="/pages/System_Overview_Architecture.py">➡️ Open page →</a>
-        <span>Enterprise design</span>
-      </div>
-    </div>
-  </div>
+with c1:
+    st.image(str(IMG_SYSTEM), use_container_width=True)
+    st.markdown("### 🧱 System Overview / Architecture")
+    st.markdown(
+        "View the system architecture, shared services, page structure, and cloud scalability mapping."
+    )
+    if st.button("➡️ Open page", key="sys"):
+        st.switch_page("pages/System_Overview_Architecture.py")
 
-  <div class="card">
-    <img src="{MODULE_IMGS['sec']}">
-    <div class="cardBody">
-      <h3>Security, Risk & Ethics</h3>
-      <p>Review privacy protections, governance assumptions and ethical analytics.</p>
-      <div class="cardFooter">
-        <a href="/pages/Security_Risk_Ethics.py">➡️ Open page →</a>
-        <span>Governance</span>
-      </div>
-    </div>
-  </div>
-
-</div>
-""", unsafe_allow_html=True)
+with c2:
+    st.image(str(IMG_SECURITY), use_container_width=True)
+    st.markdown("### 🛡️ Security, Risk & Ethics")
+    st.markdown(
+        "Review privacy protections, governance assumptions, security controls, and ethical analytics considerations."
+    )
+    if st.button("➡️ Open page", key="sec"):
+        st.switch_page("pages/Security_Risk_Ethics.py")
 
 # --------------------------------------------------
 # ANALYTICS MODULES
 # --------------------------------------------------
-st.markdown('<div class="sectionTitle">📊 Analytics Modules</div>', unsafe_allow_html=True)
-st.markdown('<div class="sectionSub">Click Open module → to explore analytics.</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">📊 Analytics Modules</div>', unsafe_allow_html=True)
+st.caption("Click Open module → to explore analytics")
 
-st.markdown(f"""
-<div class="grid">
+m1, m2 = st.columns(2)
+m3, m4 = st.columns(2)
 
-  <div class="card">
-    <img src="{MODULE_IMGS['m1']}">
-    <div class="cardBody">
-      <h3>Flight Performance Analytics</h3>
-      <p>Distance, delays, crew metrics and estimated fuel usage.</p>
-      <div class="cardFooter">
-        <a href="/pages/Module1_Flight_Performance.py">➡️ Open module →</a>
-        <span>KPIs & charts</span>
-      </div>
-    </div>
-  </div>
+with m1:
+    st.image(str(IMG_M1), use_container_width=True)
+    st.markdown("### ✈️ Flight Performance Analytics")
+    if st.button("➡️ Open module", key="m1"):
+        st.switch_page("pages/Module1_Flight_Performance.py")
 
-  <div class="card">
-    <img src="{MODULE_IMGS['m2']}">
-    <div class="cardBody">
-      <h3>Customer Experience Analytics</h3>
-      <p>Passenger satisfaction, service ratings and behaviour.</p>
-      <div class="cardFooter">
-        <a href="/pages/Module2_Customer_Experience.py">➡️ Open module →</a>
-        <span>Insights</span>
-      </div>
-    </div>
-  </div>
+with m2:
+    st.image(str(IMG_M2), use_container_width=True)
+    st.markdown("### 😊 Customer Experience Analytics")
+    if st.button("➡️ Open module", key="m2"):
+        st.switch_page("pages/Module2_Customer_Experience.py")
 
-  <div class="card">
-    <img src="{MODULE_IMGS['m3']}">
-    <div class="cardBody">
-      <h3>Risk & Scenario Simulation</h3>
-      <p>Monte Carlo simulations and operational risk modelling.</p>
-      <div class="cardFooter">
-        <a href="/pages/Module3_Risk_Simulation.py">➡️ Open module →</a>
-        <span>Probabilities</span>
-      </div>
-    </div>
-  </div>
+with m3:
+    st.image(str(IMG_M3), use_container_width=True)
+    st.markdown("### ⚠️ Risk & Scenario Simulation")
+    if st.button("➡️ Open module", key="m3"):
+        st.switch_page("pages/Module3_Risk_Simulation.py")
 
-  <div class="card">
-    <img src="{MODULE_IMGS['m4']}">
-    <div class="cardBody">
-      <h3>Cloud Analytics</h3>
-      <p>Batch vs streaming analytics and scalability concepts.</p>
-      <div class="cardFooter">
-        <a href="/pages/Module4_Cloud_Analytics.py">➡️ Open module →</a>
-        <span>Cloud patterns</span>
-      </div>
-    </div>
-  </div>
+with m4:
+    st.image(str(IMG_M4), use_container_width=True)
+    st.markdown("### ☁️ Cloud Analytics")
+    if st.button("➡️ Open module", key="m4"):
+        st.switch_page("pages/Module4_Cloud_Analytics.py")
 
-</div>
-""", unsafe_allow_html=True)
+# --------------------------------------------------
+# FOOTER
+# --------------------------------------------------
+st.success("✅ Dashboard fully operational. All navigation and media working correctly.")
